@@ -12,6 +12,7 @@
         <context:exclude-filter type="" expression=""/>
     </context:component-scan>
 
+    <context:property-placeholder location="classpath:person.properties"/>
     <bean id="person" class="com.anno.bean.Person">
         <property name="name" value="张三"/>
         <property name="age" value="10"/>

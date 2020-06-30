@@ -1,4 +1,4 @@
-# Spirng Annotation #
+**Spirng Annotation **
 
 # Bean注入 #
 ## Bean注入到容器@Bean ##
@@ -1225,15 +1225,722 @@
 ![](http://120.77.237.175:9080/photos/springanno/06.jpg)
 
 **总结**：
-BeanPostProcessor原理
-populateBean(beanName, mbd, instanceWrapper);给bean进行属性赋值
-initializeBean
-{
-applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
-invokeInitMethods(beanName, wrappedBean, mbd);执行自定义初始化
-applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
-}
 
-applyBeanPostProcessorsBeforeInitialization及applyBeanPostProcessorsAfterInitialization中
-遍历得到容器中所有的BeanPostProcessor；挨个执行beforeInitialization，
-一但返回null，跳出for循环，不会执行后面的BeanPostProcessor.postProcessorsBeforeInitialization
+**`BeanPostProcessor`原理**
+
+`populateBean(beanName, mbd, instanceWrapper)`;给bean进行属性赋值
+
+	initializeBean
+	{
+		applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
+		invokeInitMethods(beanName, wrappedBean, mbd);执行自定义初始化
+		applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
+	}
+
+`applyBeanPostProcessorsBeforeInitialization`及`applyBeanPostProcessorsAfterInitialization`中
+遍历得到容器中所有的`BeanPostProcessor`；挨个执行`beforeInitialization`，
+一但返回`nul`l，跳出`for`循环，不会执行后面的`BeanPostProcessor.postProcessorsBeforeInitialization`
+
+
+##  Spring底层对BeanPostProcessor的使用 ##
+
+
+![](http://120.77.237.175:9080/photos/springanno/07.jpg)
+
+### ApplicationContextAwareProcessor实现分析 ###
+
+此类帮我们组建`IOC`容器,跟进`ApplicationContextAwareProcessor`我们发现, 这个后置处理器其实就是判断我们的`bean`有没有实现`ApplicationContextAware` 接口,并处理相应的逻辑,其实所有的后置处理器原理均如此.
+
+那么怎么组建呢? 只需要实现 `ApplicationContextAware` 接口
+
+![](http://120.77.237.175:9080/photos/springanno/08.jpg)
+
+分析一下ApplicationContextAwareProcessor类的方法
+
+![](http://120.77.237.175:9080/photos/springanno/09.jpg)
+
+- 在创建`Dog`对象,还没初始化之前, 先判断是不是实现了`ApplicationContextAware`接口,如果是的话就调用`invokeAwareInterfaces`方法, 并给里面注入值;
+- 进入`invokeAwareInterfaces()`方法,判断是哪个`aware`, 如果是`ApplicationContextAware`, 就将当前的bean转成`ApplicationContextAware`类型, 调用`setApplicationContext()`, 把`IOC`容器注入到`Dog`里去;
+- 用`debug`调用; 测试用例打断点测试
+
+![](http://120.77.237.175:9080/photos/springanno/10.jpg)
+
+可见在调用`setApplicationContext`前已经调用`invokeAwareInterfaces(bean)`里判断当前`Bean`是否继承了`ApplicationContextAware`
+
+![](http://120.77.237.175:9080/photos/springanno/11.jpg)
+
+### BeanValidationPostProcess分析:数据校验 ###
+
+![](http://120.77.237.175:9080/photos/springanno/12.jpg)
+
+了解即可,处理器的原理和其它处理器一致.
+
+**当对象创建完,给bean赋值后,在WEB用得特别多;把页面提交的值进行校验**
+
+![](http://120.77.237.175:9080/photos/springanno/13.jpg)
+
+### InitDestroyAnnotationBeanPostProcessor ###
+
+此处理器用来处理`@PostConstruct`, `@PreDestroy`, 怎么知道这两注解是前后开始调用的呢, 就是 `InitDestroyAnnotationBeanPostProcessor`这个处理的
+
+![](http://120.77.237.175:9080/photos/springanno/14.jpg)
+
+以`@PostConstruct`为例, 为什么声明这个注解后就能找到初始化init方法呢?
+
+![](http://120.77.237.175:9080/photos/springanno/15.jpg)
+
+![](http://120.77.237.175:9080/photos/springanno/16.jpg)
+
+**总结: Spring底层对BeanPostProcessor的使用, 包括bean的赋值, 注入其它组件, 生命周期注解功能,@Async, 等等**
+
+# 属性赋值@Value和@PropertySource #
+
+- 在配置文件里配置:
+
+	   	<context:property-placeholder location="classpath:person.properties"/>
+	    <bean id="person" class="com.anno.bean.Person">
+	        <property name="name" value="张三"/>
+	        <property name="age" value="10"/>
+	    </bean>
+
+- 使用注解方式配置:
+
+	**Bean**
+	
+		public class Person {
+	
+		    //使用@Value赋值；
+		    //1、基本数值
+		    //2、可以写SpEL； #{}
+		    //3、可以写${}；取出配置文件【properties】中的值（在运行环境变量里面的值）
+		
+		    @Value("李四")
+		    private String name;
+		    @Value("#{20-2}")
+	
+			@Value("${person.nickName}")
+			private String nickName;
+	
+			.....
+		}
+	
+	**配置类**
+	
+		//使用@PropertySource读取外部配置文件中的k/v保存到运行的环境变量中;加载完外部的配置文件以后使用${}取出配置文件的值
+		@PropertySource(value = {"classpath:/person.properties"})
+		@Configuration
+		public class MainConfigOfPropertyValues {
+		
+		    @Bean
+		    public Person person()
+		    {
+		        return new Person();
+		    }
+		
+		}
+	
+	**测试**
+	
+		public class IOCTest_PropertyValue {
+	
+		    AnnotationConfigApplicationContext annotationConfigApplicationContext = new AnnotationConfigApplicationContext(MainConfigOfPropertyValues.class);
+		
+		    @Test
+		    public void test01()
+		    {
+		        Object person = annotationConfigApplicationContext.getBean("person");
+		        System.out.println(person);
+				/**
+				Person{name='李四', age=18}
+				**/
+		
+				//可以获取运行的环境变量指定的值
+				ConfigurableEnvironment environment = annotationConfigApplicationContext.getEnvironment();
+		        String property = environment.getProperty("person.nickName");
+		        System.out.println(property);	//张三
+	
+		        //关闭容器
+		        annotationConfigApplicationContext.close();
+		    }
+		}
+
+# 自动注入 #
+
+## @Autowired&@Qualifier&@Primary ##
+
+### @Autowired ###
+
+之前使用比较多的自动装配是`@Autowired`
+
+**Service**
+
+	@Service
+	public class BookService {
+	
+	    @Autowired
+	    private BookDao bookDao;
+	
+	    public void print()
+	    {
+	        System.out.println(bookDao);
+	    }
+	
+	    @Override
+	    public String toString() {
+	        return "BookService{" +
+	                "bookDao=" + bookDao +
+	                '}';
+	    }
+	}
+
+**Dao**
+
+	@Repository
+	public class BookDao {
+	
+	    private Integer label = 1;
+	
+	    public Integer getLabel() {
+	        return label;
+	    }
+	
+	    public void setLabel(Integer label) {
+	        this.label = label;
+	    }
+	
+	    @Override
+	    public String toString() {
+	        return "BookDao{" +
+	                "label=" + label +
+	                '}';
+	    }
+	}
+
+**配置类**
+
+	@Configuration
+	@ComponentScan({"com.anno.service","com.anno.controller","com.anno.dao"})
+	public class MainConifgOfAutowired {
+		.....
+	}
+
+**测试**
+
+	public class IOCTest_Autowired {
+	    AnnotationConfigApplicationContext annotationConfigApplicationContext = new AnnotationConfigApplicationContext(MainConifgOfAutowired.class);
+	
+	    @Test
+	    public void test01()
+	    {
+	        BookService bookService = annotationConfigApplicationContext.getBean(BookService.class);
+	        System.out.println(bookService);
+	
+            BookDao bookDao = (BookDao) annotationConfigApplicationContext.getBean("bookDao");
+        	System.out.println(bookDao);
+	    }
+	
+	}
+
+打印结果:
+
+	BookService{bookDao=BookDao{label=1}}
+	BookDao{label=1}
+
+可以看到现在获取到的`BookDao`容器是同一个
+
+在配置类里添加
+
+	@Bean("bookDao2")
+    public BookDao bookDao()
+    {
+        BookDao bookDao = new BookDao();
+        bookDao.setLabel(2);
+        return bookDao;
+    }
+
+打印结果:
+
+	BookService{bookDao=BookDao{label=1}}
+	BookDao{label=1}
+
+**如果找到多个相同类型的组件，再将属性的名称作为组件的id去容器中查找**
+
+调整测试里获取`BookDao2`
+
+	 BookDao bookDao = (BookDao) annotationConfigApplicationContext.getBean("bookDao2");
+     System.out.println(bookDao);
+
+打印结果:
+
+	BookService{bookDao=BookDao{label=1}}
+	BookDao{label=2}
+
+### @Qualifier ###
+
+可以看到`BookService`里注入的`BookDao`类还是1的类型,使用`@Qualifier`指定需要装配的组件的id，而不是使用属性名
+
+![](http://120.77.237.175:9080/photos/springanno/17.jpg)
+	
+打印结果:
+
+	BookService{bookDao=BookDao{label=2}}
+	BookDao{label=2}
+
+**注意:自动装配默认一定要将属性赋值好，没有就会报错；可以使用`@Autowired(required=false)`**
+
+![](http://120.77.237.175:9080/photos/springanno/18.jpg)
+
+打印结果:
+	
+	BookService{bookDao=null}
+
+### @Primary ###
+
+让`Spring`进行自动装配的时候，默认使用首选的`bean`；也可以继续使用`@Qualifier`指定需要装配的`bean`的名字
+
+![](http://120.77.237.175:9080/photos/springanno/19.jpg)
+
+把@Qualifier注释掉
+
+![](http://120.77.237.175:9080/photos/springanno/20.jpg)
+
+打印结果:
+
+	BookService{bookDao=BookDao{label=2}}
+
+同时也可以使用`@Qualifier`指定注入的组件
+
+![](http://120.77.237.175:9080/photos/springanno/21.jpg)
+
+**当`@Qualifier`找不到指定的组件时,会优先把`@Primary`注入进来**
+
+## `@Resource(JSR250)`和`@Inject(JSR330)` ##
+
+Spring还支持使用@Resource(JSR250)和@Inject(JSR330)[java规范的注解]
+
+### `@Resource` ###
+
+![](http://120.77.237.175:9080/photos/springanno/22.jpg)
+
+- 可以和`@Autowired`一样实现自动装配功能；默认是按照组件名称进行装配的；
+- 没有能支持`@Primary`功能没有支持`@Autowired（reqiured=false）`;
+
+要指定加载的`Bean`
+
+![](http://120.77.237.175:9080/photos/springanno/23.jpg)
+
+### `@Inject` ###
+
+需要导入`javax.inject`的包，和`Autowired`的功能一样。没有`required=false`的功能；
+
+**pom**
+
+        <dependency>
+            <groupId>javax.inject</groupId>
+            <artifactId>javax.inject</artifactId>
+            <version>1</version>
+        </dependency>
+
+![](http://120.77.237.175:9080/photos/springanno/24.jpg)
+
+**`@Autowired`:`Spring`定义的； `@Resource`、`@Inject`都是`java`规范**
+
+注意:上面的所有注入都是通过`AutowiredAnnotationBeanPostProcessor`解析完成自动装配功能
+
+### `@Autowire`标注位置 ###
+
+`@Autowired`:构造器，参数，方法，属性；都是从容器中获取参数组件的值
+
+1. 放在属性位置
+
+	**Bean**
+	
+		@Component
+		public class Boss {
+		
+		    @Autowired
+		    private Car car;
+		
+		    public Boss(Car car ) {
+		        this.car =car;
+		    }
+		
+		    public Car getCar() {
+		        return car;
+		    }
+		
+		    public void setCar(Car car) {
+		        this.car = car;
+		    }
+		
+		    @Override
+		    public String toString() {
+		        return "Boss{" +
+		                "car=" + car +
+		                '}';
+		    }
+		}
+
+		@Component
+		public class Car {
+			....
+		}
+
+	打印结果:
+
+		Boss boss = annotationConfigApplicationContext.getBean(Boss.class);
+        System.out.println(boss);		//Boss{car=com.anno.bean.Car@57c758ac}
+        Car car = annotationConfigApplicationContext.getBean(Car.class);
+        System.out.println(car);		//com.anno.bean.Car@57c758ac
+
+	可以看到加载进来的容器是一样的
+
+2. 放在方法上
+
+	![](http://120.77.237.175:9080/photos/springanno/25.jpg)
+
+
+2. [标在构造器上]：如果组件只有一个有参构造器，这个有参构造器的`@Autowired`可以省略，参数位置的组件还是可以自动从容器中获取
+
+	![](http://120.77.237.175:9080/photos/springanno/26.jpg)
+	
+3. [标注在方法位置]：`@Bean`+方法参数；参数从容器中获取;默认不写`@Autowired`效果是一样的；都能自动装配
+
+	![](http://120.77.237.175:9080/photos/springanno/27.jpg)
+
+## 自定义组件想要使用Spring容器底层的一些组件 ##
+
+- 自定义组件实现`xxxAware`；在创建对象的时候，会调用接口规定的方法注入相关组件；`Aware`；
+- 把`Spring`底层一些组件注入到自定义的`Bean`中；
+- `xxxAware`：功能使用`xxxProcessor`；`ApplicationContextAware`==》`ApplicationContextAwareProcessor`；
+
+![](http://120.77.237.175:9080/photos/springanno/28.jpg)
+
+
+
+	@Component
+	public class Red implements ApplicationContextAware, BeanNameAware, EmbeddedValueResolverAware {
+	
+	    private ApplicationContext applicationContext;
+	
+	    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+	        this.applicationContext = applicationContext;
+	        System.out.println("传入的IOC: "+applicationContext);
+	    }
+	
+	    public void setBeanName(String name) {
+	        System.out.println("当前Bean的名字: "+name);
+	    }
+	
+	    public void setEmbeddedValueResolver(StringValueResolver resolver) {
+	        String resolveStringValue = resolver.resolveStringValue("你好 ${os.name} 我是 #{20*18}");
+	        System.out.println(resolveStringValue);
+	    }
+	}
+
+打印结果:
+
+	当前Bean的名字: red
+	你好 Windows 10 我是 360
+	传入的IOC: org.springframework.context.annotation.AnnotationConfigApplicationContext@5cbc508c, started on Sun Jun 28 17:35:37 CST 2020
+
+ApplicationContextAware的加载原理已在上面已分析过了,详细请看**3.6.1**
+
+# @Profile #
+
+`Spring`为我们提供的可以根据当前环境，动态的激活和切换一系列组件的功能；
+
+`@Profile`：指定组件在哪个环境的情况下才能被注册到容器中，不指定，任何环境下都能注册这个组件
+
+1. 加了环境标识的bean，只有这个环境被激活的时候才能注册到容器中。默认是default环境
+2. 写在配置类上，只有是指定的环境的时候，整个配置类里面的所有配置才能开始生效
+3. 没有标注环境标识的bean在任何环境下都是加载的；
+
+**配置类**
+
+		@PropertySource("classpath:/dbconfig.properties")
+		@Configuration
+		public class MainConfigOfProfile implements EmbeddedValueResolverAware {
+		
+		    @Value("${db.user}")
+		    private String user;
+		
+		    private StringValueResolver valueResolver;
+		
+		    private String driverClass;
+		
+		    @Profile("test")
+		    @Bean
+		    public DataSource dataSource01(@Value("${db.password}") String password) throws Exception
+		    {
+		        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+		        dataSource.setUser(user);
+		        dataSource.setPassword(password);
+		        dataSource.setJdbcUrl("jdbc:mysql://120.77.237.175/test");
+		        dataSource.setDriverClass(driverClass);
+		        return dataSource;
+		    }
+		
+		    @Profile("dev")
+		    @Bean
+		    public DataSource dataSource02(@Value("${db.password}") String password) throws Exception
+		    {
+		        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+		        dataSource.setUser(user);
+		        dataSource.setPassword(password);
+		        dataSource.setJdbcUrl("jdbc:mysql://120.77.237.175/test");
+		        dataSource.setDriverClass(driverClass);
+		        return dataSource;
+		    }
+		
+		    @Profile("pro")
+		    @Bean
+		    public DataSource dataSource03(@Value("${db.password}") String password) throws Exception
+		    {
+		        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+		        dataSource.setUser(user);
+		        dataSource.setPassword(password);
+		        dataSource.setJdbcUrl("jdbc:mysql://120.77.237.175/test");
+		        dataSource.setDriverClass(driverClass);
+		        return dataSource;
+		    }
+		
+		    public void setEmbeddedValueResolver(StringValueResolver resolver) {
+		       valueResolver = resolver;
+		        driverClass = valueResolver.resolveStringValue("${db.driverClass}");
+		    }
+		}
+
+配置
+
+	db.user=root
+	db.password=123456
+	db.driverClass=com.mysql.jdbc.Driver
+
+测试
+
+	public class IOCTest_Profile {
+	    AnnotationConfigApplicationContext annotationConfigApplicationContext = new AnnotationConfigApplicationContext();
+	
+	    @Test
+	    public void test01()
+	    {
+	        String[] beanNamesForType = annotationConfigApplicationContext.getBeanNamesForType(DataSource.class);
+	
+	        for (String s:beanNamesForType)
+	        {
+	            System.out.println(s);
+	        }
+	
+	
+	        annotationConfigApplicationContext.close();
+	    }
+	
+	}
+
+**打印结果为空,因为配置了@Profile,现在没有任何适用的环境**
+
+1. 使用命令行动态参数: 在虚拟机参数位置加载 -Dspring.profiles.active=test
+	![](http://120.77.237.175:9080/photos/springanno/29.jpg)
+
+2. 代码的方式激活某种环境
+
+	通过分析源码
+
+	![](http://120.77.237.175:9080/photos/springanno/30.png)
+
+	测试
+
+		public class IOCTest_Profile {
+		    AnnotationConfigApplicationContext annotationConfigApplicationContext = new AnnotationConfigApplicationContext();
+		
+		    @Test
+		    public void test01()
+		    {
+		        //1、创建一个applicationContext
+		        //2、设置需要激活的环境
+		        annotationConfigApplicationContext.getEnvironment().setActiveProfiles("dev");
+		        //3、注册主配置类
+		        annotationConfigApplicationContext.register(MainConfigOfProfile.class);
+		        //4、启动刷新容器
+		        annotationConfigApplicationContext.refresh();
+		
+		        String[] beanNamesForType = annotationConfigApplicationContext.getBeanNamesForType(DataSource.class);
+		
+		        for (String s:beanNamesForType)
+		        {
+		            System.out.println(s);		//dataSource02
+		        }
+			
+		        annotationConfigApplicationContext.close();
+		    }
+		
+		}
+
+
+当@Profile加在整个配置类上时,只有是指定的环境的时候，整个配置类里面的所有配置才能开始生效
+
+![](http://120.77.237.175:9080/photos/springanno/31.png)
+
+
+# Aop动态代理 #
+
+## 实现流程 ##
+
+指在程序运行期间动态的将某段代码切入到指定方法指定位置进行运行的编程方式；
+
+- 将业务逻辑组件和切面类都加入到容器中；告诉`Spring`哪个是切面类（`@Aspect`）
+- 在切面类上的每一个通知方法上标注通知注解，告诉`Spring`何时何地运行（切入点表达式）
+- 开启基于注解的`aop`模式；`@EnableAspectJAutoProx`
+
+流程:
+
+1. **导入aop模块**
+
+	 <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-aspects</artifactId>
+            <version>5.2.6.RELEASE</version>
+      </dependency>
+
+2. **定义一个业务逻辑类（`MathCalculator`）；在业务逻辑运行的时候将日志进行打印（方法之前、方法运行结束、方法出现异常，xxx）**
+
+		public class MathCalculator {
+	
+		    public int div(int i,int j)
+		    {
+		        System.out.println("MathCalculator.......div......");
+		        return i/j;
+		    }
+		}
+
+3. 定义一个日志切面类（`LogAspects`）：切面类里面的方法需要动态感知`MathCalculator.div`运行到哪里然后执行；
+
+	通知方法：
+
+	- 前置通知(`@Before`)：`logStart`：在目标方法(`div`)运行之前运行
+	- 后置通知(`@After`)：`logEnd`：在目标方法(`div`)运行结束之后运行（无论方法正常结束还是异常结束）
+	- 返回通知(`@AfterReturning`)：`logReturn`：在目标方法(`div`)正常返回之后运行
+	- 异常通知(`@AfterThrowing`)：`logException`：在目标方法(`div`)出现异常以后运行
+	- 环绕通知(`@Around`)：动态代理，手动推进目标方法运行（`joinPoint.procced()`）
+
+
+
+4. 给切面类的目标方法标注何时何地运行（通知注解）；
+5. 将切面类和业务逻辑类（目标方法所在类）都加入到容器中;
+6. 必须告诉`Spring`哪个类是切面类(给切面类上加一个注解：`@Aspect`)
+7. 给配置类中加 `@EnableAspectJAutoProxy` 【开启基于注解的`aop`模式】,在`Spring`中很多的 `@EnableXXX`;
+
+	相当于以前在XML中配置
+
+		<!-- 开启基于注解版的切面功能 -->
+		<aop:aspectj-autoproxy></aop:aspectj-autoproxy>
+
+
+**切面类**
+
+		/**
+		 * 
+		 * @Aspect： 告诉Spring当前类是一个切面类
+		 *
+		 */
+		@Aspect
+		public class LogOfAspects {
+		
+		    //抽取公共的切入点表达式
+		    //1、本类引用
+		    //2、其他的切面引用
+		    @Pointcut("execution(public int com.anno.aop.MathCalculator.*(..))")
+		    public void pointCut()
+		    {};
+		
+		    @Before("pointCut()")
+		    public void logStart(JoinPoint joinPoint)
+		    {
+		        Object[] args = joinPoint.getArgs();
+		        System.out.println(joinPoint.getSignature().getName()+"运行.......@Before:参数列表是"+ Arrays.asList(args));
+		    }
+		
+		    @After("com.anno.aop.LogOfAspects.pointCut()")
+		    public void logEnd(JoinPoint joinPoint)
+		    {
+		        System.out.println(joinPoint.getSignature().getName()+" 结束........@After");
+		    }
+		
+		    //注意:JoinPoint一定要出现在参数表的第一位
+		    @AfterReturning(value = "pointCut()",returning = "result")
+		    public void logReturn(JoinPoint joinPoint,Object result)
+		    {
+		        System.out.println(joinPoint.getSignature().getName()+" 正常返回.......... @AfterReturning:运行结果:"+result);
+		    }
+		
+		    @AfterThrowing(value = "pointCut()",throwing = "exception")
+		    public void logException(JoinPoint joinPoint,Exception exception)
+		    {
+		        System.out.println(joinPoint.getSignature().getName()+" 异常.............异常信息: "+exception);
+		    }
+		
+		}
+
+**配置类**
+
+	@EnableAspectJAutoProxy	
+	@Configuration
+	public class MainConfigOfAOP {
+	
+	    @Bean
+	    public MathCalculator mathCalculator()
+	    {
+	        return new MathCalculator();
+	    }
+	
+	    @Bean
+	    public LogOfAspects logOfAspects()
+	    {
+	        return new LogOfAspects();
+	    }
+	}
+
+
+
+**测试**
+
+	public class IOCTest_Aop {
+	    AnnotationConfigApplicationContext annotationConfigApplicationContext = new AnnotationConfigApplicationContext(MainConfigOfAOP.class);
+	
+	    @Test
+	    public void test01()
+	    {
+	        MathCalculator mathCalculator = annotationConfigApplicationContext.getBean(MathCalculator.class);
+	        mathCalculator.div(1,1);
+	        //System.out.println(mathCalculator);
+	
+	        annotationConfigApplicationContext.close();
+	    }
+	
+	}
+
+**打印结果**
+
+	div运行.......@Before:参数列表是[1, 1]
+	MathCalculator.......div......
+	div 结束........@After
+	div 正常返回.......... @AfterReturning:运行结果:1
+
+## @EnableAspectJAutoProxy原理 ##
+
+看给容器中注册了什么组件，这个组件什么时候工作，这个组件的功能是什么？
+
+基于注解的方式实现AOP需要在配置类中添加注解@EnableAspectJAutoProxy。我们就先从这个注解看一下Spring实现AOP的过程：
+
+![](http://120.77.237.175:9080/photos/springanno/32.jpg)
+
+**发现`EnableAspectJAutoProxy`它就是给容器中注册了一个`AspectJAutoProxyRegistrar`,而`AspectJAutoProxyRegistrar`它实现了
+`ImportBeanDefinitionRegistrar`接口,会向会编程式的向`IOC`容器中注册组件.**
+
+![](http://120.77.237.175:9080/photos/springanno/33.jpg)
+
+从上图打断点进入我看可以看到
+
+
+![](http://120.77.237.175:9080/photos/springanno/34.jpg)

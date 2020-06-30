@@ -11,6 +11,8 @@ import javax.annotation.PreDestroy;
 @Component
 public class Dog implements ApplicationContextAware {
 
+    private ApplicationContext applicationContext;
+
     public Dog() {
         System.out.println("dog .... construct");
     }
@@ -31,6 +33,8 @@ public class Dog implements ApplicationContextAware {
 
 
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-
+        //容器初如化,将applicationContext传进来,那么其它方法就可使用到IOC容器了
+        //这个功能是ApplicationContextAware做的
+        this.applicationContext = applicationContext;
     }
 }
