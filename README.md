@@ -1940,7 +1940,37 @@ ApplicationContextAware的加载原理已在上面已分析过了,详细请看**
 
 ![](http://120.77.237.175:9080/photos/springanno/33.jpg)
 
-从上图打断点进入我看可以看到
+从上图打断点进入我看可以看到返回的`org.springframework.aop.aspectj.annotation.AnnotationAwareAspectJAutoProxyCreator`
 
 
 ![](http://120.77.237.175:9080/photos/springanno/34.jpg)
+
+接下来就是研究下给容器中注册的这个`AnnotationAwareAspectJAutoProxyCreator`
+通过查看源码，可以发现`AnnotationAwareAspectJAutoProxyCreator`的继承树
+
+## AnnotationAwareAspectJAutoProxCreator分析 ##
+    
+	/**
+	AnnotationAwareAspectJAutoProxCreator
+	继承了AspectJAwareAdvisorAutoProxyCreator
+		AspectJAwareAdvisiorAutoProxyCreator
+		继承自AbstractAdvisiorAutoProxyCreator
+			AbstractAdvisiorAutoProxyCreator
+			继承自AbstractAutoProxyCreator
+				而AbstractAutoProxyCreator这个父类需要关注的是它实现了
+				SmartInstantiationAwareBeanPostProcessor.BeanFactoryAware
+		
+		接下来我们需要在 AbstractAutoProxyCreator.setBeanFactory()打上【断点】		
+		AbstractAutoProxyCreator.postProcessBeforeInstantiation()打上【断点】	
+		AbstractAutoProxyCreator.postProcessAfterInitialization()打上【断点】	
+		AbstractAdvisiorAutoProxyCreator. ()打上【断点】		->initBeanFactory()下面重写了进入下面的
+		AnnotationAwareAspectJAutoProxCreator.initBeanFactory()打上【断点】	
+		mathCaculator，logAspects 【断点】
+	*/			
+
+## 流程 ##
+研究一下AnnotationAwareAspectJAutoProxyCreator的创建和注册流程
+
+### 传入配置类，创建IOC容器 ###
+
+	AnnotationConfigApplicationContext annotationConfigApplicationContext = new AnnotationConfigApplicationContext(MainConfigOfAOP.class);
