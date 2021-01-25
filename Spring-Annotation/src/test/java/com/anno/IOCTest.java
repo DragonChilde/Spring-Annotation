@@ -1,7 +1,6 @@
 package com.anno;
 
 
-import com.anno.bean.ColorFactoryBean;
 import com.anno.bean.Yellow;
 import com.anno.config.MyConfig;
 import com.anno.config.MyConfig2;
@@ -102,6 +101,9 @@ public class IOCTest {
 
         //单例情况下两个相等,反之多例情况下不等
         System.out.println(bean1.equals(bean2));
+
+
+
 
         //如果要获取原生的工厂Bean,在前面在&
         Object bean = annotationConfigApplicationContext.getBean("&colorFactoryBean");

@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="f5357386-38a6-4334-9ac7-f72ff92d4b67" name="默认的" comment="" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CodeInsightWorkspaceSettings">
+    <option name="optimizeImportsOnTheFly" value="true" />
+  </component>
+  <component name="CompilerWorkspaceConfiguration">
+    <option name="MAKE_PROJECT_ON_SAVE" value="true" />
+  </component>
+  <component name="JRebelWorkspace">
+    <option name="jrebelEnabledAutocompile" value="true" />
+  </component>
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="localRepository" value="D:\Server\LocalRepository" />
+        <option name="mavenHome" value="E:/Server/apache-maven-3.6.3" />
+        <option name="userSettingsFile" value="E:\Server\apache-maven-3.6.3\conf\settings.xml" />
+      </MavenGeneralSettings>
+    </option>
+  </component>
+  <component name="ProjectId" id="1kEWaSHUwCbYPWyN6ffoCFI72ZM" />
+  <component name="ProjectViewState">
+    <option name="abbreviatePackageNames" value="true" />
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="aspect.path.notification.shown" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
+    <property name="nodejs_npm_path_reset_for_default_project" value="true" />
+    <property name="project.structure.last.edited" value="SDK" />
+    <property name="project.structure.proportion" value="0.0" />
+    <property name="project.structure.side.proportion" value="0.24712643" />
+    <property name="settings.editor.selected.configurable" value="MavenSettings" />
+  </component>
+  <component name="RebelAgentSelection">
+    <selection>jr</selection>
+  </component>
+  <component name="RunManager" selected="JUnit.IOCTest_Aop.test01">
+    <configuration name="IOCTest_Aop.test01" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="spring-annotation" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.anno.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="com.anno" />
+      <option name="MAIN_CLASS_NAME" value="com.anno.IOCTest_Aop" />
+      <option name="METHOD_NAME" value="test01" />
+      <option name="TEST_OBJECT" value="method" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="IOCTest.test02" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="spring-annotation" />
+      <useClassPathOnly />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.anno.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+      <option name="ALTERNATIVE_JRE_PATH" value="E:/Server/java-se-8u41-ri" />
+      <option name="PACKAGE_NAME" value="com.anno" />
+      <option name="MAIN_CLASS_NAME" value="com.anno.IOCTest" />
+      <option name="METHOD_NAME" value="test02" />
+      <option name="TEST_OBJECT" value="method" />
+      <option name="PARAMETERS" value="" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="#com.intellij.j2ee.web.tomcat.TomcatRunConfigurationFactory" factoryName="Local" APPLICATION_SERVER_NAME="Tomcat 9.0.39" ALTERNATIVE_JRE_ENABLED="true" ALTERNATIVE_JRE_PATH="E:/Server/java-se-8u41-ri/jre">
+      <option name="BROWSER_ID" value="98ca6316-2f89-46d9-a9e5-fa9e2b0625b3" />
+      <option name="UPDATING_POLICY" value="restart-server" />
+      <deployment />
+      <server-settings>
+        <option name="BASE_DIRECTORY_NAME" value="_spring-annotation" />
+      </server-settings>
+      <predefined_log_file enabled="true" id="Tomcat" />
+      <predefined_log_file enabled="true" id="Tomcat Catalina" />
+      <predefined_log_file id="Tomcat Manager" />
+      <predefined_log_file id="Tomcat Host Manager" />
+      <predefined_log_file id="Tomcat Localhost Access" />
+      <RunnerSettings RunnerId="Debug">
+        <option name="DEBUG_PORT" value="javadebug" />
+      </RunnerSettings>
+      <ConfigurationWrapper VM_VAR="JAVA_OPTS" RunnerId="Cover">
+        <option name="USE_ENV_VARIABLES" value="true" />
+        <STARTUP>
+          <option name="USE_DEFAULT" value="true" />
+          <option name="SCRIPT" value="" />
+          <option name="VM_PARAMETERS" value="" />
+          <option name="PROGRAM_PARAMETERS" value="" />
+        </STARTUP>
+        <SHUTDOWN>
+          <option name="USE_DEFAULT" value="true" />
+          <option name="SCRIPT" value="" />
+          <option name="VM_PARAMETERS" value="" />
+          <option name="PROGRAM_PARAMETERS" value="" />
+        </SHUTDOWN>
+      </ConfigurationWrapper>
+      <ConfigurationWrapper VM_VAR="JAVA_OPTS" RunnerId="Debug">
+        <option name="USE_ENV_VARIABLES" value="true" />
+        <STARTUP>
+          <option name="USE_DEFAULT" value="true" />
+          <option name="SCRIPT" value="" />
+          <option name="VM_PARAMETERS" value="" />
+          <option name="PROGRAM_PARAMETERS" value="" />
+        </STARTUP>
+        <SHUTDOWN>
+          <option name="USE_DEFAULT" value="true" />
+          <option name="SCRIPT" value="" />
+          <option name="VM_PARAMETERS" value="" />
+          <option name="PROGRAM_PARAMETERS" value="" />
+        </SHUTDOWN>
+      </ConfigurationWrapper>
+      <ConfigurationWrapper VM_VAR="JAVA_OPTS" RunnerId="Run">
+        <option name="USE_ENV_VARIABLES" value="true" />
+        <STARTUP>
+          <option name="USE_DEFAULT" value="true" />
+          <option name="SCRIPT" value="" />
+          <option name="VM_PARAMETERS" value="" />
+          <option name="PROGRAM_PARAMETERS" value="" />
+        </STARTUP>
+        <SHUTDOWN>
+          <option name="USE_DEFAULT" value="true" />
+          <option name="SCRIPT" value="" />
+          <option name="VM_PARAMETERS" value="" />
+          <option name="PROGRAM_PARAMETERS" value="" />
+        </SHUTDOWN>
+      </ConfigurationWrapper>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="JUnit.IOCTest.test02" />
+      <item itemvalue="JUnit.IOCTest_Aop.test01" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="JUnit.IOCTest_Aop.test01" />
+        <item itemvalue="JUnit.IOCTest.test02" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SshConsoleOptionsProvider">
+    <option name="myEncoding" value="UTF-8" />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f5357386-38a6-4334-9ac7-f72ff92d4b67" name="默认的" comment="" />
+      <created>1605266293404</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1605266293404</updated>
+      <workItem from="1605266301746" duration="3881000" />
+      <workItem from="1605272459264" duration="130000" />
+      <workItem from="1605326187934" duration="980000" />
+      <workItem from="1605328059273" duration="527000" />
+      <workItem from="1605328608312" duration="1344000" />
+      <workItem from="1610438905318" duration="191000" />
+      <workItem from="1611114959900" duration="881000" />
+      <workItem from="1611283555780" duration="29595000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="2" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="605" y="203" key="#HTTP_Proxy" timestamp="1605328037267">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="605" y="203" key="#HTTP_Proxy/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1605328037267" />
+    <state x="497" y="421" key="#Tomcat_Server" timestamp="1605269080422">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="497" y="421" key="#Tomcat_Server/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1605269080422" />
+    <state x="372" y="263" key="#com.intellij.codeInsight.template.impl.EditVariableDialog" timestamp="1605270590879">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="372" y="263" key="#com.intellij.codeInsight.template.impl.EditVariableDialog/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1605270590879" />
+    <state x="177" y="196" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1605329381590">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="177" y="196" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1605329381590" />
+    <state x="694" y="356" key="#com.intellij.ide.actions.ChooseComponentsToExportDialog" timestamp="1605272524347">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="694" y="356" key="#com.intellij.ide.actions.ChooseComponentsToExportDialog/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1605272524347" />
+    <state x="335" y="271" width="1353" height="769" key="#xdebugger.evaluate" timestamp="1611539815403">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="335" y="271" width="1353" height="769" key="#xdebugger.evaluate/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611539815403" />
+    <state x="289" y="236" key="FileChooserDialogImpl" timestamp="1611301256247">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="289" y="236" key="FileChooserDialogImpl/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611301256247" />
+    <state width="1877" height="289" key="GridCell.Tab.0.bottom" timestamp="1611540937640">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1877" height="289" key="GridCell.Tab.0.bottom/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611540937640" />
+    <state width="1877" height="289" key="GridCell.Tab.0.center" timestamp="1611540937640">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1877" height="289" key="GridCell.Tab.0.center/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611540937640" />
+    <state width="1877" height="289" key="GridCell.Tab.0.left" timestamp="1611540937640">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1877" height="289" key="GridCell.Tab.0.left/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611540937640" />
+    <state width="1877" height="289" key="GridCell.Tab.0.right" timestamp="1611540937640">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1877" height="289" key="GridCell.Tab.0.right/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611540937640" />
+    <state width="1877" height="289" key="GridCell.Tab.1.bottom" timestamp="1611540937640">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1877" height="289" key="GridCell.Tab.1.bottom/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611540937640" />
+    <state width="1877" height="289" key="GridCell.Tab.1.center" timestamp="1611540937640">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1877" height="289" key="GridCell.Tab.1.center/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611540937640" />
+    <state width="1877" height="289" key="GridCell.Tab.1.left" timestamp="1611540937640">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1877" height="289" key="GridCell.Tab.1.left/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611540937640" />
+    <state width="1877" height="289" key="GridCell.Tab.1.right" timestamp="1611540937640">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1877" height="289" key="GridCell.Tab.1.right/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611540937640" />
+    <state width="938" height="327" key="GridCell.Tab.2.bottom" timestamp="1611298950854">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="938" height="327" key="GridCell.Tab.2.bottom/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611298950854" />
+    <state width="938" height="327" key="GridCell.Tab.2.center" timestamp="1611298950853">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="938" height="327" key="GridCell.Tab.2.center/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611298950853" />
+    <state width="938" height="327" key="GridCell.Tab.2.left" timestamp="1611298950853">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="938" height="327" key="GridCell.Tab.2.left/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611298950853" />
+    <state width="938" height="327" key="GridCell.Tab.2.right" timestamp="1611298950853">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="938" height="327" key="GridCell.Tab.2.right/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611298950853" />
+    <state x="289" y="140" key="SettingsEditor" timestamp="1610438951198">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="289" y="140" key="SettingsEditor/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1610438951198" />
+    <state x="398" y="281" width="672" height="678" key="search.everywhere.popup" timestamp="1611539817953">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="398" y="281" width="672" height="678" key="search.everywhere.popup/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1611539817953" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="java-method">
+          <url>jar://$PROJECT_DIR$/../../../Server/LocalRepository/org/springframework/spring-aop/5.2.6.RELEASE/spring-aop-5.2.6.RELEASE-sources.jar!/org/springframework/aop/framework/autoproxy/AbstractAutoProxyCreator.java</url>
+          <line>243</line>
+          <properties class="org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator" method="postProcessBeforeInstantiation">
+            <option name="EMULATED" value="true" />
+          </properties>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-method">
+          <url>jar://$PROJECT_DIR$/../../../Server/LocalRepository/org/springframework/spring-aop/5.2.6.RELEASE/spring-aop-5.2.6.RELEASE-sources.jar!/org/springframework/aop/framework/autoproxy/AbstractAutoProxyCreator.java</url>
+          <line>294</line>
+          <properties class="org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator" method="postProcessAfterInitialization">
+            <option name="EMULATED" value="true" />
+          </properties>
+          <option name="timeStamp" value="4" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-method">
+          <url>jar://$PROJECT_DIR$/../../../Server/LocalRepository/org/springframework/spring-aop/5.2.6.RELEASE/spring-aop-5.2.6.RELEASE-sources.jar!/org/springframework/aop/framework/autoproxy/AbstractAutoProxyCreator.java</url>
+          <line>205</line>
+          <properties class="org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator" method="setBeanFactory">
+            <option name="EMULATED" value="true" />
+          </properties>
+          <option name="timeStamp" value="5" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-method">
+          <url>jar://$PROJECT_DIR$/../../../Server/LocalRepository/org/springframework/spring-aop/5.2.6.RELEASE/spring-aop-5.2.6.RELEASE-sources.jar!/org/springframework/aop/aspectj/annotation/AnnotationAwareAspectJAutoProxyCreator.java</url>
+          <line>78</line>
+          <properties class="org.springframework.aop.aspectj.annotation.AnnotationAwareAspectJAutoProxyCreator" method="initBeanFactory">
+            <option name="EMULATED" value="true" />
+          </properties>
+          <option name="timeStamp" value="6" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-method">
+          <url>jar://$PROJECT_DIR$/../../../Server/LocalRepository/org/springframework/spring-aop/5.2.6.RELEASE/spring-aop-5.2.6.RELEASE-sources.jar!/org/springframework/aop/framework/autoproxy/AbstractAdvisorAutoProxyCreator.java</url>
+          <line>56</line>
+          <properties class="org.springframework.aop.framework.autoproxy.AbstractAdvisorAutoProxyCreator" method="setBeanFactory">
+            <option name="EMULATED" value="true" />
+          </properties>
+          <option name="timeStamp" value="7" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+</project>
