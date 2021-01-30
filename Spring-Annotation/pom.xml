@@ -20,6 +20,12 @@
             <artifactId>spring-aspects</artifactId>
             <version>5.2.6.RELEASE</version>
         </dependency>
+        <!--添加spring-jdbc模块的依赖-->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>5.2.6.RELEASE</version>
+        </dependency>
 
         <dependency>
             <groupId>junit</groupId>
@@ -40,6 +46,7 @@
             <artifactId>c3p0</artifactId>
             <version>0.9.5.5</version>
         </dependency>
+        <!--添加MySQL数据库驱动的依赖-->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>

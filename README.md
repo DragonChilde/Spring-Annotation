@@ -585,27 +585,31 @@
 
 ### ImportSelector ###
 
-	//自定义逻辑返回需要导入的组件
-	public class MyImportSelector implements ImportSelector {
-	    //返回值，就是到导入到容器中的组件全类名
-	    //AnnotationMetadata:当前标注@Import注解的类的所有注解信息
-	    public String[] selectImports(AnnotationMetadata annotationMetadata) {
-	
-	        //方法不要返回null值
-	        return new String[]{
-	            "com.anno.bean.Yellow"
-	        };
-	    }
-	}
+```java
+//自定义逻辑返回需要导入的组件
+public class MyImportSelector implements ImportSelector {
+    //返回值，就是到导入到容器中的组件全类名
+    //AnnotationMetadata:当前标注@Import注解的类的所有注解信息
+    public String[] selectImports(AnnotationMetadata annotationMetadata) {
+
+        //方法不要返回null值
+        return new String[]{
+            "com.anno.bean.Yellow"
+        };
+    }
+}
+```
 
 ---
 
-	@Import({Blue.class, Red.class, MyImportSelector.class})
-	@Configuration
-	public class MyConfig2 {
-	
-		...
-	}
+```java
+@Import({Blue.class, Red.class, MyImportSelector.class})
+@Configuration
+public class MyConfig2 {
+
+	...
+}
+```
 
 注意:过来调试发现当如果反正NULL值,会出现异常,看源码可以发现,用的是字符串数组的长度,因此不能用NULL,必须返回空数组
 
@@ -614,77 +618,85 @@
 
 ### ImportBeanDefinitionRegistrar ###
 
-	public class MyImportBeanDefinitionRegistrar implements ImportBeanDefinitionRegistrar {
-	
-	    /**
-	     * AnnotationMetadata：当前类的注解信息
-	     * BeanDefinitionRegistry:BeanDefinition注册类；
-	     * 		把所有需要添加到容器中的bean；调用
-	     * 		BeanDefinitionRegistry.registerBeanDefinition手工注册进来
-	     */
-	    public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
-	        boolean red = registry.containsBeanDefinition("com.anno.bean.Red");
-	        boolean blue = registry.containsBeanDefinition("com.anno.bean.Blue");
-	        if (red && blue)
-	        {
-	            //指定Bean定义信息；（Bean的类型，Bean。。。）
-	            RootBeanDefinition rootBeanDefinition = new RootBeanDefinition(Rainbow.class);
-	            //注册一个Bean，指定bean名
-	            registry.registerBeanDefinition("rainBow",rootBeanDefinition);
-	        }
-	    }
-	}
+```java
+public class MyImportBeanDefinitionRegistrar implements ImportBeanDefinitionRegistrar {
+
+    /**
+     * AnnotationMetadata：当前类的注解信息
+     * BeanDefinitionRegistry:BeanDefinition注册类；
+     * 		把所有需要添加到容器中的bean；调用
+     * 		BeanDefinitionRegistry.registerBeanDefinition手工注册进来
+     */
+    public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
+        boolean red = registry.containsBeanDefinition("com.anno.bean.Red");
+        boolean blue = registry.containsBeanDefinition("com.anno.bean.Blue");
+        if (red && blue)
+        {
+            //指定Bean定义信息；（Bean的类型，Bean。。。）
+            RootBeanDefinition rootBeanDefinition = new RootBeanDefinition(Rainbow.class);
+            //注册一个Bean，指定bean名
+            registry.registerBeanDefinition("rainBow",rootBeanDefinition);
+        }
+    }
+}
+```
 
 ---
 
 
-	@Import({Blue.class, Red.class, MyImportSelector.class, MyImportBeanDefinitionRegistrar.class})
-	@Configuration
-	public class MyConfig2 {
-		....
-	}
+```java
+@Import({Blue.class, Red.class, MyImportSelector.class, MyImportBeanDefinitionRegistrar.class})
+@Configuration
+public class MyConfig2 {
+	....
+}
+```
 
 打印结果
 
-	org.springframework.context.annotation.internalConfigurationAnnotationProcessor
-	org.springframework.context.annotation.internalAutowiredAnnotationProcessor
-	org.springframework.context.annotation.internalCommonAnnotationProcessor
-	org.springframework.context.event.internalEventListenerProcessor
-	org.springframework.context.event.internalEventListenerFactory
-	myConfig2
-	com.anno.bean.Blue
-	com.anno.bean.Red
-	com.anno.bean.Yellow
-	person
-	zhangsan
-	rainBow
-	com.anno.bean.Yellow@5bd03f44
+```java
+org.springframework.context.annotation.internalConfigurationAnnotationProcessor
+org.springframework.context.annotation.internalAutowiredAnnotationProcessor
+org.springframework.context.annotation.internalCommonAnnotationProcessor
+org.springframework.context.event.internalEventListenerProcessor
+org.springframework.context.event.internalEventListenerFactory
+myConfig2
+com.anno.bean.Blue
+com.anno.bean.Red
+com.anno.bean.Yellow
+person
+zhangsan
+rainBow
+com.anno.bean.Yellow@5bd03f44
+```
 
 
 ## FactoryBean ##
 
 创建一个工厂`Bean`
 
-	//创建一个Spring定义的FactoryBean
-	public class ColorFactoryBean implements FactoryBean<Color> {
-	
-	    //返回一个Color对象，这个对象会添加到容器中
-	    public Color getObject() throws Exception {
-	        System.out.println("ColorFactoryBean.....getObject()");
-	        return new Color();
-	    }
-	
-	    public Class<?> getObjectType() {
-	        return Color.class;
-	    }
-	
-	    //是单例？
-	    //true：这个bean是单实例，在容器中保存一份
-	    //false：多实例，每次获取都会创建一个新的bean；
-	    public boolean isSingleton() {
-	        return false;
-	    }
-	}
+```java
+//创建一个Spring定义的FactoryBean
+public class ColorFactoryBean implements FactoryBean<Color> {
+
+    //返回一个Color对象，这个对象会添加到容器中
+    public Color getObject() throws Exception {
+        System.out.println("ColorFactoryBean.....getObject()");
+        return new Color();
+    }
+
+    public Class<?> getObjectType() {
+        return Color.class;
+    }
+
+    //是单例？
+    //true：这个bean是单实例，在容器中保存一份
+    //false：多实例，每次获取都会创建一个新的bean；
+    public boolean isSingleton() {
+        return false;
+    }
+}
+```
 
 在`Myconfig2`配置类里配置工厂`Bean`
 
@@ -2563,7 +2575,7 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 
 所以，接下来，我们就可以讲讲完成`BeanFactory`的初始化工作的第一步了
 
-#### BeanFactory的初始化工作的第一步
+### BeanFactory的初始化工作的第一步
 
 遍历获取容器中所有的`bean`，并依次创建对象，注意是依次调用`getBean()`方法来创建对象的。
 
@@ -2585,7 +2597,7 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 
 那到底是怎么获取的呢？其实从注释中可以知道，它会提前先检查单实例的缓存中是不是已经人工注册了一些单实例的bean，若是则获取。
 
-#### 完成BeanFactory的初始化工作的第二步
+### 完成BeanFactory的初始化工作的第二步
 
 也就是说，这个bean的创建不是说一下就创建好了的，它得**先从缓存中获取当前bean，如果能获取到，说明当前bean之前是被创建过的，那么就直接使用，否则的话再创建。**
 
@@ -2789,3 +2801,2348 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 我们以前就知道，`BeanPostProcessor`是在bean对象创建完成初始化前后调用的。而在这儿我们也看到了，首先是会有一个判断，即判断后置处理器是不是`InstantiationAwareBeanPostProcessor`这种类型的，然后再尝试用后置处理器返回对象（当然了，是在创建bean实例之前）。
 
 总之，我们可以得出一个结论：**`AnnotationAwareAspectJAutoProxyCreator`会在所有bean创建之前会有一个拦截，InstantiationAwareBeanPostProcessor，会调用postProcessBeforeInstantiation(),先尝试返回bean的实例**
+
+最后，我们继续跟进方法调用栈，如下图所示，可以看到终于又定位到了`AbstractAutoProxyCreator`抽象类的`postProcessBeforeInstantiation()`方法中
+
+![](http://120.77.237.175:9080/photos/springanno/73.jpg)
+
+为什么程序会来到这个方法中呢？想必你也非常清楚了，因为判断后置处理器是不是`InstantiationAwareBeanPostProcessor`这种类型时，轮到了`AnnotationAwareAspectJAutoProxyCreator`这个后置处理器，而它正好是`InstantiationAwareBeanPostProcessor`这种类型的，所以程序自然就会来到它的`postProcessBeforeInstantiation()`方法中。
+
+呼应前面，终于分析到了`AnnotationAwareAspectJAutoProxyCreator`这个后置处理器的`postProcessBeforeInstantiation()`方法中，也就是知道了程序是怎么到这儿来的。
+
+最终，我们得出这样一个结论：**`AnnotationAwareAspectJAutoProxyCreator`在所有`bean`创建之前，会有一个拦截，因为它是`InstantiationAwareBeanPostProcessor`这种类型的后置处理器，然后会调用它的`postProcessBeforeInstantiation()`方法。**
+
+### AnnotationAwareAspectJAutoProxyCreator作为后置处理器
+
+1. **在每一个bean创建之前，调用postProcessBeforeInstantiation()方法**
+
+`AnnotationAwareAspectJAutoProxyCreator`作为后置处理器，它其中的一个作用就是在每一个`bean`创建之前，调用其`postProcessBeforeInstantiation()`方法。
+
+接下来，我们来看看这个方法都做了哪些事情。此刻，是来创建容器中的第一个bean的，即class com.anno.config.MainConfigOfAOP，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/74.jpg)
+
+在上面已经知道，这块是一个循环创建，会循环创建每一个bean。像`MainConfigOfAOP`这样的`bean`，跟我们要研究的`AOP`原理没什么关系，所以我们并不关心这个`bean`的创建。我们主要关心`MathCalculator`（业务逻辑类）和`LogAspects`（切面类）这两个bean的创建。
+
+2. **先来判断当前bean是否在advisedBeans中**
+
+`advisedBeans`是个什么东西呢？它是一个`Map`集合，里面保存了所有需要增强的`bean`的名称。那什么又叫需要增强的bean呢？就是那些业务逻辑类，例如`MathCalculator`，因为它里面的那些方法是需要切面来切的，所以我们要执行它里面的方法，不能再像以前那么简单地执行了，得需要增强，这就是所谓的需要增强的bean。
+
+当程序运行到如下这行代码时，我们来看一下，名为`advisedBeans`的`Map`集合里面是不包含`MathCalculator`这个bean的名称的，因为我们是第一次来处理这个bean。
+
+也就是说，在这儿会判断当前的`MathCalculator`这个`bean`有没有在`advisedBeans`集合里面
+
+3. **再来判断当前bean是否是基础类型，或者是否是切面（标注了@Aspect注解的）**
+
+继续按下`F6`快捷键让程序往下运行，可以看到又会做一个判断，即判断当前bean是否是基础类型，或者是否是标注了`@Aspect`注解的切面
+
+```java
+//isInfrastructureClass判断当前Bean是否是基础类,或者是否是标注了@Aspect注解的切面
+if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) {
+    this.advisedBeans.put(cacheKey, Boolean.FALSE);
+    return null;
+}
+```
+
+什么叫基础类型呢？所谓的基础类型就是当前`bean`是否是实现了`Advice`、`Pointcut`、`Advisor`以及`AopInfrastructureBean`这些接口。我们可以点进去`isInfrastructureClass()`方法里面大概看一看，如下所示，你现在该知道所谓的基础类型是什么了吧
+
+```java
+	protected boolean isInfrastructureClass(Class<?> beanClass) {
+		boolean retVal = Advice.class.isAssignableFrom(beanClass) ||
+				Pointcut.class.isAssignableFrom(beanClass) ||
+				Advisor.class.isAssignableFrom(beanClass) ||
+				AopInfrastructureBean.class.isAssignableFrom(beanClass);
+		if (retVal && logger.isTraceEnabled()) {
+			logger.trace("Did not attempt to auto-proxy infrastructure class [" + beanClass.getName() + "]");
+		}
+		return retVal;
+	}
+```
+
+其实，除了判断当前`bean`是否是基础类型之外，还有一个判断，那怎么看到这个判断呢？选中isInfrastructureClass()方法，按下`F5`快捷键进入该方法里面，就能看到这个判断了，即判断当前`bean`是否是标注了`@Aspect`注解的切面。
+
+```java
+	@Override
+	protected boolean isInfrastructureClass(Class<?> beanClass) {
+        //isInfrastructureClass()判断当前Bean是否基码类型,isAspect()判断当前Bean是否标注了@Aspect注解的切面
+		return (super.isInfrastructureClass(beanClass) ||
+				(this.aspectJAdvisorFactory != null && this.aspectJAdvisorFactory.isAspect(beanClass)));
+	}
+```
+
+从上面可以清楚地看到，还有一个叫`isAspect`的方法，它就是来判断当前`bean`是否是标注了`@Aspect`注解的切面的。那么它是怎么来判断的呢？我们可以进入该方法里面去看一看（选中该方法，然后按下`F5`快捷键即可进入），如下图所示，可以看到它是用`hasAspectAnnotation()`方法来判断当前`bean`有没有标注`@Aspect`注解的。
+
+```java
+	@Override
+	public boolean isAspect(Class<?> clazz) {
+		return (hasAspectAnnotation(clazz) && !compiledByAjc(clazz));
+	}
+```
+
+很显然，当前的这个`bean`（即MathCalculator）既不是基础类型，也不是标注了`@Aspect`注解的切面。所以，按下`F6`快捷键让程序继续往下运行，运行回`postProcessBeforeInstantiation()`方法中之后，`isInfrastructureClass(beanClass)`表达式的值就是`false`了
+
+![](http://120.77.237.175:9080/photos/springanno/75.jpg)
+
+4. **最后判断是否需要跳过**
+
+所谓的跳过，就是说不要再处理这个`bean`了。那跳过又是怎么判断的呢？我们可以按下`F5`快捷键进入`shouldSkip()`方法里面去看一看，如下图所示。
+
+```java
+	protected boolean shouldSkip(Class<?> beanClass, String beanName) {
+		// TODO: Consider optimization by caching the list of the aspect names
+		List<Advisor> candidateAdvisors = findCandidateAdvisors();
+		for (Advisor advisor : candidateAdvisors) {
+			if (advisor instanceof AspectJPointcutAdvisor &&
+					((AspectJPointcutAdvisor) advisor).getAspectName().equals(beanName)) {
+				return true;
+			}
+		}
+		return super.shouldSkip(beanClass, beanName);
+	}
+```
+
+可以看到，首先是调用`findCandidateAdvisors()`方法找到候选的增强器的集合。
+
+继续按下`F6`快捷键让程序往下运行，检查`candidateAdvisors`变量，可以看到现在有4个增强器，什么叫增强器啊？**增强器就是切面里面的那些通知方法。** 而且第一个增强器就是logStart()方法，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/76.jpg)
+
+第二个增强器是logEnd()方法，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/77.jpg)
+
+第三个增强器是logReturn()方法，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/78.jpg)
+
+第四个增强器是logException()方法，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/79.jpg)
+
+总结：在`shouldSkip()`方法里面，首先会获取到以上这4个通知方法。也就是说，先来获取候选的增强器。所谓的增强器其实就是切面里面的那些通知方法，只不过，在这儿是把通知方法的详细信息包装成了一个`Advisor`，并将其存放在了一个`List<Advisor>`集合中，即增强器的集合，即是说，每一个通知方法都会被认为是一个增强器。
+
+那么，每一个增强器的类型又是什么呢？检查一下`candidateAdvisors`变量便知，每一个封装通知方法的增强器都是`InstantiationModelAwarePointcutAdvisor`这种类型的。
+
+![](http://120.77.237.175:9080/photos/springanno/80.jpg)
+
+获取到4个增强器之后，然后会来判断每一个增强器是不是`AspectJPointcutAdvisor`这种类型，如果是，那么返回true。很显然，每一个增强器并不是这种类型的，而是`InstantiationModelAwarePointcutAdvisor`这种类型的，因此程序并不会进入到那个if判断语句中。
+
+继续按下`F6`快捷键让程序往下运行，一直运行到`shouldSkip()`方法中的最后一行代码处，可以看到，在`shouldSkip()`方法里面，最终会调用父类的`shouldSkip()`方法，如下。我们可以按下`F5`快捷键进入父类的`shouldSkip()`方法里面去看一看，如下图所示，发现它在这儿直接就返回`false`了
+
+```java
+	protected boolean shouldSkip(Class<?> beanClass, String beanName) {
+		return AutoProxyUtils.isOriginalInstance(beanName, beanClass);
+	}
+==============================
+    //判断直接返回false
+	static boolean isOriginalInstance(String beanName, Class<?> beanClass) {
+		if (!StringUtils.hasLength(beanName) || beanName.length() !=
+				beanClass.getName().length() + AutowireCapableBeanFactory.ORIGINAL_INSTANCE_SUFFIX.length()) {
+			return false;
+		}
+		return (beanName.startsWith(beanClass.getName()) &&
+				beanName.endsWith(AutowireCapableBeanFactory.ORIGINAL_INSTANCE_SUFFIX));
+	}
+```
+
+继续按下`F6`快捷键让程序往下运行，一直运行回`postProcessBeforeInstantiation()`方法中，这时，我们可以知道，if判断语句中的第二个表达式的值就是false。
+
+![](http://120.77.237.175:9080/photos/springanno/81.jpg)
+
+也就是说，shouldSkip()方法的返回值永远是`false`，而它就是用来判断是否需要跳过的，所以相当于就是说要跳过了。
+
+好吧，跳过那就跳过吧！那就继续按下`F6`快捷键让程序往下运行，我们还是能看到当前这个`bean`的名字是叫calculator，而且还会拿到什么自定义的`TargetSource`，但这跟我们目前的研究没有关系，程序往下运行，最后将会直接返回`null`。
+
+然后，按下`F8`快捷键运行到下一个断点，发现这时会来到主配置类的`calculator()`方法中。此刻，是要调用`mathCalculator()`方法来创建`MathCalculator`对象了。
+
+![](http://120.77.237.175:9080/photos/springanno/82.jpg)
+
+继续按下`F8`快捷键运行到下一个断点，可以发现当我们把`MathCalculator`对象创建完了以后，在这儿又会调用`postProcessAfterInitialization()`方法。
+
+![](http://120.77.237.175:9080/photos/springanno/83.jpg)
+
+其实，上面我也已经说过了，**在每次创建`bean`的时候，都会先调用`postProcessBeforeInstantiation()`方法，然后再调用`postProcessAfterInitialization()`方法。**
+
+**5. 创建完对象以后，调用postProcessAfterInitialization()方法**
+
+前面我就已说过，`AnnotationAwareAspectJAutoProxyCreator`作为后置处理器，它的第一个作用。现在，我就来说说它的第二个作用，即在创建完对象以后，会调用其`postProcessAfterInitialization()`方法。
+
+我们调用刚才的`mathCalculator()`方法创建完`MathCalculator`对象以后，发现又会调用`AnnotationAwareAspectJAutoProxyCreator`（后置处理器）的`postProcessAfterInitialization()`方法。那么该方法又做了些什么事呢？
+
+继续按下`F6`快捷键让程序往下运行，我们可以看到当前创建好的`MathCalculator`对象，并且这个`bean`的名字就叫`mathCalculator`，也可以看到在这儿还做了一个判断，即判断名为`earlyProxyReferences`的Set集合里面是否包含当前`bean`，在该Set集合里面我们可以看到之前已经代理过了什么，目前该Set集合是一个空集合。这都不是我们要关注的内容，我们重点要关注的内容其实是那个叫`wrapIfNecessary`的方法
+
+什么情况是需要包装的呢？我们可以按下`F5`快捷键进入该方法里面去看一看，如下
+
+```java
+	protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) {
+		if (StringUtils.hasLength(beanName) && this.targetSourcedBeans.contains(beanName)) {
+			return bean;
+		}
+		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
+			return bean;
+		}
+		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
+			this.advisedBeans.put(cacheKey, Boolean.FALSE);
+			return bean;
+		}
+
+		// 重点在这
+		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
+		if (specificInterceptors != DO_NOT_PROXY) {
+			this.advisedBeans.put(cacheKey, Boolean.TRUE);
+			Object proxy = createProxy(
+					bean.getClass(), beanName, specificInterceptors, new SingletonTargetSource(bean));
+			this.proxyTypes.put(cacheKey, proxy.getClass());
+			return proxy;
+		}
+
+		this.advisedBeans.put(cacheKey, Boolean.FALSE);
+		return bean;
+	}
+```
+
+我们继续按下`F6`快捷键让程序往下运行，可以看到：
+
+- 首先是拿到`MathCalculator`这个bean的名称（即`mathCalculator`），然后再来判断名为`targetSourcedBeans`的`Set`集合里面是否包含有这个`bean`的名称，只不过此时该Set集合是一个空集合。
+
+- 接着再来判断名为`advisedBeans`的`Map`集合里面是否包含有当前`bean`的名称。我在前面也说过了`advisedBeans`这个东东，它就是一个`Map`集合，里面保存了所有需要增强的`bean`的名称。
+
+  由于这儿是第一次来处理当前`bean`，所以名为`advisedBeans`的`Map`集合里面是不包含`MathCalculator`这个`bean`的名称的。
+
+- 紧接着再来判断当前`bean`是否是基础类型，或者是否是切面（即标注了`@Aspect`注解的）。这儿是怎样来判断的，之前我已经详细地讲过了，故略过。
+
+上面这些东东都不是我们要关注的内容，我们重点要关注的内容其实是下面这个叫`getAdvicesAndAdvisorsForBean`的方法。
+
+从该方法上面的注释中可以得知，它是用于创建代理对象的，从该方法的名称上（见名知义），我们也可以知道它是来获取当前bean的通知方法以及那些增强器的。
+
+6. ### **获取当前bean的所有增强器**
+
+调用`getAdvicesAndAdvisorsForBean()`方法获取当前`bean`的所有增强器，也就是那些通知方法，最终封装成这样一个`Object[] specificInterceptors`数组。
+
+到底是怎么来获取当前bean的所有增强器的呢？我们可以按下`F5`快捷键进入`getAdvicesAndAdvisorsForBean()`方法里面去看一看，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/84.jpg)
+
+可以看到，又会调用`findEligibleAdvisors()`方法来获取`MathCalculator`这个类型的所有增强器，也可以说成是可用的增强器。它又是怎么获取的呢？我们可以按下`F5`快捷键进入`findEligibleAdvisors()`方法里面去看一看，如下图所示，可以看到会先调用一个`findCandidateAdvisors()`方法来获取候选的所有增强器。
+
+```java
+	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
+		List<Advisor> candidateAdvisors = findCandidateAdvisors();
+		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
+		extendAdvisors(eligibleAdvisors);
+		if (!eligibleAdvisors.isEmpty()) {
+			eligibleAdvisors = sortAdvisors(eligibleAdvisors);
+		}
+		return eligibleAdvisors;
+	}
+```
+
+候选的所有增强器，前面我也说过了，有4个，就是切面里面定义的那4个通知方法。
+
+按下`F6`快捷键让程序往下运行，可以看到会调用一个`findAdvisorsThatCanApply()`方法，见名知义，该方法是来找到那些可用的增强器的，以便可以应用到目标对象里面的目标方法中。
+
+现在所要做的事情就是，**找到候选的所有增强器，也就是说是来找哪些通知方法是需要切入到当前bean的目标方法中的。**
+
+怎么找呢？我们继续按下`F5`快捷键进入`findAdvisorsThatCanApply()`方法里面去看一看，如下图所示，可以看到它是用`AopUtils`工具类来找到所有能用的增强器（通知方法）的。
+
+```java
+	protected List<Advisor> findAdvisorsThatCanApply(
+			List<Advisor> candidateAdvisors, Class<?> beanClass, String beanName) {
+
+		ProxyCreationContext.setCurrentProxiedBeanName(beanName);
+		try {
+			return AopUtils.findAdvisorsThatCanApply(candidateAdvisors, beanClass);
+		}
+		finally {
+			ProxyCreationContext.setCurrentProxiedBeanName(null);
+		}
+	}
+```
+
+又是怎么找的呢？我们继续按下`F5`快捷键进入`AopUtils`工具类的`findAdvisorsThatCanApply()`方法里面去看一看，如下图所示。
+
+```java
+	public static List<Advisor> findAdvisorsThatCanApply(List<Advisor> candidateAdvisors, Class<?> clazz) {
+		if (candidateAdvisors.isEmpty()) {
+			return candidateAdvisors;
+		}
+		List<Advisor> eligibleAdvisors = new ArrayList<>();
+		for (Advisor candidate : candidateAdvisors) {
+			if (candidate instanceof IntroductionAdvisor && canApply(candidate, clazz)) {
+				eligibleAdvisors.add(candidate);
+			}
+		}
+		boolean hasIntroductions = !eligibleAdvisors.isEmpty();
+		for (Advisor candidate : candidateAdvisors) {
+			if (candidate instanceof IntroductionAdvisor) {
+				// already processed
+				continue;
+			}
+			if (canApply(candidate, clazz, hasIntroductions)) {
+				eligibleAdvisors.add(candidate);
+			}
+		}
+		return eligibleAdvisors;
+	}
+```
+
+在按下`F6`快捷键让程序往下运行的过程中，我们可以看到，先是定义了一个保存可用增强器的`LinkedList`集合，即`eligibleAdvisors`。然后通过下面的一个`for`循环来遍历每一个增强器，在遍历的过程中，可以看到有两个`&&`判断条件，前面的那个是来判断每一个增强器是不是`IntroductionAdvisor`这种类型的，很明显，每一个增强器并不是这种类型的，它是`InstantiationModelAwarePointcutAdvisor`这种类型的，前面我也说过了。所以，程序压根就不会进入到这个if判断语句中。
+
+程序继续往下运行，这时我们会看到还有一个`for`循环，它同样是来遍历每一个增强器的，在遍历的过程中，可以看到先是来判断每一个增强器是不是`IntroductionAdvisor`这种类型的，但很显然，并不是，然后再来利用`canApply()`方法判断每一个增强器是不是可用的，那什么是叫可用的呢？
+
+我们可以按下`F5`快捷键进入canApply()方法里面去看一看，如下图所示。
+
+```java
+public static boolean canApply(Advisor advisor, Class<?> targetClass, boolean hasIntroductions) {
+   if (advisor instanceof IntroductionAdvisor) {
+      return ((IntroductionAdvisor) advisor).getClassFilter().matches(targetClass);
+   }
+   else if (advisor instanceof PointcutAdvisor) {
+      PointcutAdvisor pca = (PointcutAdvisor) advisor;
+      return canApply(pca.getPointcut(), targetClass, hasIntroductions);
+   }
+   else {
+      // It doesn't have a pointcut so we assume it applies.
+      return true;
+   }
+}
+```
+
+在按下`F6`快捷键让程序往下运行的过程中，我们可以看到，这一块的逻辑就是用`PointcutAdvisor`（切入点表达式）开始来算一下每一个通知方法能不能匹配上，现在每一个增强器（通知方法）都是能匹配上的哟
+
+继续按下`F6`快捷键让程序往下运行，可以看到，现在程序是回到了`findAdvisorsThatCanApply()`方法的第二个for循环中
+
+由于现在第一个增强器（`logStart()`方法）是能匹配上的，即它肯定是能切入到目标对象的目标方法中的，也就是说这个增强器是可用的，所以它会被添加到名为`eligibleAdvisors的LinkedList`集合里面。
+
+继续按下`F6`快捷键让程序往下运行，就会循环判断接下来的每一个增强器能不能用，若能用则添加到名为`eligibleAdvisors`的`LinkedList`集合中。
+
+接着，继续按下`F6`快捷键让程序往下运行，一直运行回`findEligibleAdvisors()`方法中
+
+```java
+	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
+		List<Advisor> candidateAdvisors = findCandidateAdvisors();
+		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
+		extendAdvisors(eligibleAdvisors);
+		if (!eligibleAdvisors.isEmpty()) {
+			eligibleAdvisors = sortAdvisors(eligibleAdvisors);
+		}
+		return eligibleAdvisors;
+	}
+```
+
+至此，终于**获取到能在当前bean中使用的增强器**了。
+
+继续按下`F6`快捷键让程序往下运行，可以看到，在该方法中还对增强器做了一些排序，也就是说调用哪些通知方法，它们都是有顺序的。
+
+继续按下`F6`快捷键让程序往下运行，这时程序会运行回`getAdvicesAndAdvisorsForBean()`方法中，最终能在当前`bean`中使用的增强器就获取到了，要是没获取到呢（即advisors集合为空），那么就会返回一个`DO_NOT_PROXY`，这个`DO_NOT_PROXY`其实就是`null`。很显然，这儿是获取到了，`advisors`集合并不会为空，所以程序最终会运行到下面这行代码处。
+
+```java
+	protected Object[] getAdvicesAndAdvisorsForBean(
+			Class<?> beanClass, String beanName, @Nullable TargetSource targetSource) {
+
+		List<Advisor> advisors = findEligibleAdvisors(beanClass, beanName);
+		if (advisors.isEmpty()) {
+			return DO_NOT_PROXY;
+		}
+		return advisors.toArray();
+	}
+```
+
+继续按下`F6`快捷键让程序往下运行，这时程序会运行回`wrapIfNecessary()`方法中，如下图所示。
+
+现在这个叫`specificInterceptors`的`Object[]`数组里面已经具有了那些指定好的增强器，这些增强器其实就是要拦截目标方法执行的
+
+**小结**
+
+以上这一小节的流程，我们可以归纳为：
+
+1. 找到候选的所有增强器，也就是说是来找哪些通知方法是需要切入到当前`bean`的目标方法中的
+2. 获取到能在当前`bean`中使用的增强器
+3. 给增强器排序
+
+7. ### 保存当前bean在advisedBeans中，表示这个当前bean已经被增强处理了
+
+接下来，继续按下`F6`快捷键让程序往下运行，当程序运行到下面这一行代码时，就会将当前bean添加到名为advisedBeans的Map集合中，表示这个当前bean已经被增强处理了。
+
+```java
+	protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) {
+		if (StringUtils.hasLength(beanName) && this.targetSourcedBeans.contains(beanName)) {
+			return bean;
+		}
+		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
+			return bean;
+		}
+		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
+			this.advisedBeans.put(cacheKey, Boolean.FALSE);
+			return bean;
+		}
+
+		// Create proxy if we have advice.
+		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
+        //如果当前Bean是需要增强的,那么就会进入到if判断语句中,因为在这儿已经获取到了这些可用的增强器,这就表明specificInterceptors!=null,specificInterceptors!=null程序自然就会进入到if判断语句中
+		if (specificInterceptors != DO_NOT_PROXY) {
+			this.advisedBeans.put(cacheKey, Boolean.TRUE);
+			Object proxy = createProxy(
+					bean.getClass(), beanName, specificInterceptors, new SingletonTargetSource(bean));
+			this.proxyTypes.put(cacheKey, proxy.getClass());
+			return proxy;
+		}
+
+		this.advisedBeans.put(cacheKey, Boolean.FALSE);
+		return bean;
+	}
+```
+
+当程序继续往下运行时，会发现有一个`createProxy()`方法，这个方法非常重要，它是来创建代理对象的。
+
+下面我们主要来研究一下createProxy()方法。
+
+8. #### **若当前bean需要增强，则创建当前bean的代理对象**
+
+当程序运行到`createProxy()`方法处时，就会创建当前`bean`的代理对象，那么这个代理对象怎么创建的呢？如下图所示
+
+```java
+	protected Object createProxy(Class<?> beanClass, @Nullable String beanName,
+			@Nullable Object[] specificInterceptors, TargetSource targetSource) {
+
+		if (this.beanFactory instanceof ConfigurableListableBeanFactory) {
+			AutoProxyUtils.exposeTargetClass((ConfigurableListableBeanFactory) this.beanFactory, beanName, beanClass);
+		}
+
+		ProxyFactory proxyFactory = new ProxyFactory();
+		proxyFactory.copyFrom(this);
+
+		if (!proxyFactory.isProxyTargetClass()) {
+			if (shouldProxyTargetClass(beanClass, beanName)) {
+				proxyFactory.setProxyTargetClass(true);
+			}
+			else {
+				evaluateProxyInterfaces(beanClass, proxyFactory);
+			}
+		}
+		//先拿到所有增强器
+		Advisor[] advisors = buildAdvisors(beanName, specificInterceptors);
+        //增强保存到代理工厂
+		proxyFactory.addAdvisors(advisors);
+		proxyFactory.setTargetSource(targetSource);
+		customizeProxyFactory(proxyFactory);
+
+		proxyFactory.setFrozen(this.freezeProxy);
+		if (advisorsPreFiltered()) {
+			proxyFactory.setPreFiltered(true);
+		}
+		//利用代理工厂帮我们创建一个代理对象
+		return proxyFactory.getProxy(getProxyClassLoader());
+	}
+```
+
+继续按下`F6`快捷键让程序往下运行，可以看到是先拿到所有增强器，然后再把这些增强器保存到代理工厂（即`proxyFactory`）中。
+
+那它是怎么帮我们创建代理对象的呢？这得进入到代理工厂的getProxy()方法里面去看一看了，就能真正进入到代理工厂的getProxy()方法里面了，如下图所示。
+
+```java
+	public Object getProxy(@Nullable ClassLoader classLoader) {
+		return createAopProxy().getProxy(classLoader);
+	}
+```
+
+可以看到，会先调用`createAopProxy()`方法来创建AOP代理。我们按下`F5`快捷键进入该方法中去看一看，如下图所示，可以看到是先得到AOP代理的创建工厂，然后再来创建AOP代理的。
+
+```java
+	protected final synchronized AopProxy createAopProxy() {
+		if (!this.active) {
+			activate();
+		}
+		return getAopProxyFactory().createAopProxy(this);
+	}
+```
+
+`getAopProxyFactory()`方法就调用完了，也即`AOP`代理的创建工厂就获取到了。接下来，就是调用`createAopProxy()`方法为this对象创建`AOP`代理了。
+
+那到底是怎么来创建创建`AOP`代理的呢？我们可以按下`F5`快捷键进入`createAopProxy()`方法中去看一看，如下图所示，这时Spring会自动决定，是为组件创建jdk的动态代理呢，还是为组件创建cglib的动态代理？
+
+```java
+	public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException {
+		if (config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config)) {
+			Class<?> targetClass = config.getTargetClass();
+			if (targetClass == null) {
+				throw new AopConfigException("TargetSource cannot determine target class: " +
+						"Either an interface or a target is required for proxy creation.");
+			}
+			if (targetClass.isInterface() || Proxy.isProxyClass(targetClass)) {
+				return new JdkDynamicAopProxy(config);
+			}
+			return new ObjenesisCglibAopProxy(config);
+		}
+		else {
+			return new JdkDynamicAopProxy(config);
+		}
+	}
+```
+
+也就是说，会在这儿为组件创建代理对象，并且有两种形式的代理对象，它们分别是：
+
+- 一种是`JdkDynamicAopProxy`这种形式的，即jdk的动态代理
+- 一种是`ObjenesisCglibAopProxy`这种形式的，即cglib的动态代理
+
+那么`Spring`是怎么自动决定是要创建`jdk`的动态代理，还是要创建`cglib`的动态代理呢？如果当前类是有实现接口的，那么就使用`jdk`来创建动态代理，如果当前类没有实现接口，例如`MathCalculator`类，此时jdk是没法创建动态代理的，那么自然就得使用cglib来创建动态代理了。而且，咱们可以让Spring强制使用`cglib`
+
+也就是说，不管怎么样，`Spring`都会在这儿为我们创建一个代理对象。很显然，现在是使用`cglib`来创建动态代理的。
+
+我们继续按下`F6`快捷键让程序往下运行，一直让程序运行回`wrapIfNecessary()`方法中，如下图所示，这时`createProxy()`方法返回的`proxy`对象是一个通过`Spring cglib`增强了的代理对象。
+
+![](http://120.77.237.175:9080/photos/springanno/86.jpg)
+
+继续按下`F6`快捷键让程序往下运行，一直让程序运行到`applyBeanPostProcessorsAfterInitialization()`方法中，如下
+
+```java
+	@Override
+	public Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName)
+			throws BeansException {
+
+		Object result = existingBean;
+		for (BeanPostProcessor processor : getBeanPostProcessors()) {
+			Object current = processor.postProcessAfterInitialization(result, beanName);
+			if (current == null) {
+				return result;
+			}
+			result = current;
+		}
+		return result;
+	}
+```
+
+至此，刚才的那个`wrapIfNecessary()`方法就完全算是调用完了。
+
+经过上面的分析，我们知道，**`wrapIfNecessary()`方法调用完之后，最终会给容器中返回当前组件使用`cglib`增强了的代理对象。**
+
+对于`MathCalculator`这个组件来说，以后从容器中获取到的就是该组件的代理对象，然后在执行其目标方法时，这个代理对象就会执行切面里面的通知方法。
+
+**小结**
+
+1. 获取所有增强器，所谓的增强器就是切面里面的那些通知方法。
+2. 然后再把这些增强器保存到代理工厂（即`proxyFactory`）中。
+3. 为当前组件创建代理对象，并且会有两种形式的代理对象，它们分别如下，最终Spring会自动决定，是为当前组件创建`jdk`的动态代理，还是创建`cglib`的动态代理。
+   - 一种是`JdkDynamicAopProxy`这种形式的，即`jdk`的动态代理
+   - 一种是`ObjenesisCglibAopProxy`这种形式的，即`cglib`的动态代理
+
+
+
+### 目标方法的拦截逻辑
+
+打开IOCTest_AOP测试类的代码，并在目标方法运行的地方打上一个断点
+
+![](http://120.77.237.175:9080/photos/springanno/87.jpg)
+
+当程序运行到目标方法处之后，我们就得进入该方法中来看一看其执行流程了。不过在此之前，我们来看一下从容器中得到的MathCalculator对象，可以看到它确实是使用cglib增强了的代理对象，它里面还封装了好多的数据，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/88.png)
+
+也就是说**容器中存放的这个增强后的代理对象里面保存了所有通知方法的详细信息，以及还包括要切入的目标对象。**
+
+接下来，我们按下`F5`快捷键进入目标方法中去看一看，进入到了`CglibAopProxy`类的`intercept()`方法中，如下图所示。
+
+```java
+		@Override
+		@Nullable
+		public Object intercept(Object proxy, Method method, Object[] args, MethodProxy methodProxy) throws Throwable {
+			Object oldProxy = null;
+			boolean setProxyContext = false;
+			Object target = null;
+			TargetSource targetSource = this.advised.getTargetSource();
+			try {
+				if (this.advised.exposeProxy) {
+					// Make invocation available if necessary.
+					oldProxy = AopContext.setCurrentProxy(proxy);
+					setProxyContext = true;
+				}
+				// Get as late as possible to minimize the time we "own" the target, in case it comes from a pool...
+				target = targetSource.getTarget();
+				Class<?> targetClass = (target != null ? target.getClass() : null);
+				List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
+				Object retVal;
+				// Check whether we only have one InvokerInterceptor: that is,
+				// no real advice, but just reflective invocation of the target.
+				if (chain.isEmpty() && Modifier.isPublic(method.getModifiers())) {
+					// We can skip creating a MethodInvocation: just invoke the target directly.
+					// Note that the final invoker must be an InvokerInterceptor, so we know
+					// it does nothing but a reflective operation on the target, and no hot
+					// swapping or fancy proxying.
+					Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
+					retVal = methodProxy.invoke(target, argsToUse);
+				}
+				else {
+					// We need to create a method invocation...
+					retVal = new CglibMethodInvocation(proxy, target, method, args, targetClass, chain, methodProxy).proceed();
+				}
+				retVal = processReturnType(proxy, target, method, retVal);
+				return retVal;
+			}
+			finally {
+				if (target != null && !targetSource.isStatic()) {
+					targetSource.releaseTarget(target);
+				}
+				if (setProxyContext) {
+					// Restore old proxy.
+					AopContext.setCurrentProxy(oldProxy);
+				}
+			}
+		}
+```
+
+见名知义，这个方法就是来拦截目标方法的执行的。也就是说，在执行目标方法之前，先让这个`AOP`代理来拦截一下。接下来，我们就来看看它的拦截逻辑。
+
+1. #### **根据ProxyFactory对象获取将要执行的目标方法的拦截器链**
+
+在按下`F6`快捷键让程序往下运行的过程中，可以看到前面都是一些变量的声明，直至程序运行到下面这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/89.jpg)
+
+这时，就拿到了我们要切的目标对象，即`MathCalculator`对象。接下来，我们就得仔细研究一下`getInterceptorsAndDynamicInterceptionAdvice()`方法了。
+
+它的意思是说要根据`ProxyFactory`对象获取将要执行的目标方法的拦截器链（chain，chain翻译过来就是链的意思），其中，advised变量代表的是`ProxyFactory`对象，`method`参数代表的是即将要执行的目标方法（即`div()`方法）。
+
+那么，目标方法的拦截器链到底是怎么获取的呢？这才是我们关注的核心。听起来，它是来拦截目标方法前后进行执行的，而在目标方法前后要执行的，其实就是切面里面的通知方法。所以，我们可以大胆猜测，这个拦截器链应该是来说先是怎么执行通知方法，然后再来怎么执行目标方法的。
+
+回到主题，如果有拦截器链，那么这个拦截器链是怎么获取的呢？我们可以按下`F5`快捷键进入`getInterceptorsAndDynamicInterceptionAdvice()`方法中去看一看，进来以后可以看到有一些缓存，缓存就是要把这些获取到的东西保存起来，方便下一次直接使用。
+
+```java
+	public List<Object> getInterceptorsAndDynamicInterceptionAdvice(Method method, @Nullable Class<?> targetClass) {
+		MethodCacheKey cacheKey = new MethodCacheKey(method);
+		List<Object> cached = this.methodCache.get(cacheKey);
+		if (cached == null) {
+            //可以看到，它是利用advisorChainFactory来获取目标方法的拦截器链的。那又是怎么获取的呢?按下F5快捷键进入getInterceptorsAndDynamicInterceptionAdvice()方法中看一看便知道了
+			cached = this.advisorChainFactory.getInterceptorsAndDynamicInterceptionAdvice(
+					this, method, targetClass);
+			this.methodCache.put(cacheKey, cached);
+		}
+		return cached;
+	}
+```
+
+```java
+	public List<Object> getInterceptorsAndDynamicInterceptionAdvice(
+			Advised config, Method method, @Nullable Class<?> targetClass) {
+
+		// This is somewhat tricky... We have to process introductions first,
+		// but we need to preserve order in the ultimate list.
+		AdvisorAdapterRegistry registry = GlobalAdvisorAdapterRegistry.getInstance();
+		Advisor[] advisors = config.getAdvisors();
+        //1. 先是在这里创建List<Object> interceptorList
+		List<Object> interceptorList = new ArrayList<>(advisors.length);
+		Class<?> actualClass = (targetClass != null ? targetClass : method.getDeclaringClass());
+		Boolean hasIntroductions = null;
+		//2. 在这儿遍历所有的增强器
+		for (Advisor advisor : advisors) {
+			if (advisor instanceof PointcutAdvisor) {
+				// Add it conditionally.
+				PointcutAdvisor pointcutAdvisor = (PointcutAdvisor) advisor;
+				if (config.isPreFiltered() || pointcutAdvisor.getPointcut().getClassFilter().matches(actualClass)) {
+					MethodMatcher mm = pointcutAdvisor.getPointcut().getMethodMatcher();
+					boolean match;
+					if (mm instanceof IntroductionAwareMethodMatcher) {
+						if (hasIntroductions == null) {
+							hasIntroductions = hasMatchingIntroductions(advisors, actualClass);
+						}
+						match = ((IntroductionAwareMethodMatcher) mm).matches(method, actualClass, hasIntroductions);
+					}
+					else {
+						match = mm.matches(method, actualClass);
+					}
+					if (match) {
+						MethodInterceptor[] interceptors = registry.getInterceptors(advisor);
+						if (mm.isRuntime()) {
+							// Creating a new object instance in the getInterceptors() method
+							// isn't a problem as we normally cache created chains.
+							for (MethodInterceptor interceptor : interceptors) {
+								interceptorList.add(new InterceptorAndDynamicMethodMatcher(interceptor, mm));
+							}
+						}
+						else {
+                            //3. 接着在这里为该集合添加值
+							interceptorList.addAll(Arrays.asList(interceptors));
+						}
+					}
+				}
+			}
+			else if (advisor instanceof IntroductionAdvisor) {
+				IntroductionAdvisor ia = (IntroductionAdvisor) advisor;
+				if (config.isPreFiltered() || ia.getClassFilter().matches(actualClass)) {
+					Interceptor[] interceptors = registry.getInterceptors(advisor);
+                    //3. 接着在这里为该集合添加值
+					interceptorList.addAll(Arrays.asList(interceptors));
+				}
+			}
+			else {
+				Interceptor[] interceptors = registry.getInterceptors(advisor);
+                //3. 接着在这里为该集合添加值
+				interceptorList.addAll(Arrays.asList(interceptors));
+			}
+		}
+		//4. 最后返回该集合
+		return interceptorList;
+	}
+```
+
+可以看到，先是在开头创建一个`List<Object> interceptorList`集合，然后在后面遍历所有增强器，并为该集合添加值，最后返回该集合。最终，整个拦截器链就会被封装到List集合中。接下来，我就来详细讲讲`getInterceptorsAndDynamicInterceptionAdvice()`方法，看这个方法都做了些什么？
+
+2. #### **先创建一个List集合，来保存所有拦截器**
+
+注意，在开头创建`List`集合时，其实已经为该集合赋好了长度，长度到底是多少呢？如下图所示
+
+![](http://120.77.237.175:9080/photos/springanno/90.jpg)
+
+很显然，该集合的长度是5，1个默认的`ExposeInvocationInterceptor`和4个增强器，这个List集合虽然有长度，但是现在是空的。另外，我们也知道，第一个增强器其实是一个异常通知，即`AspectJAfterThrowingAdvice`，因为我已在前面分析过了。
+
+按下`F6`快捷键让程序往下运行，这时会有一个for循环，它是来遍历所有的Advisor的（一共有5个），每遍历出一个Advisor，便来判断它是不是`PointcutAdvisor`（和切入点有关的Advisor），若是则把这个Advisor传过来，然后包装成一个``MethodInterceptor[]`类型的`interceptors`，接着再把它添加到一开始创建的List集合中。
+
+![](http://120.77.237.175:9080/photos/springanno/91.jpg)
+
+如果遍历出的`Advisor`不是`PointcutAdvisor`，而是`IntroductionAdvisor`，那么怎么办呢？同样是将这个`Advisor`传过来，然后包装成一个`Interceptor[]`类型的`interceptors`，最后再把它添加到一开始创建的List集合中。
+
+```java
+else if (advisor instanceof IntroductionAdvisor) {
+    IntroductionAdvisor ia = (IntroductionAdvisor) advisor;
+    if (config.isPreFiltered() || ia.getClassFilter().matches(actualClass)) {
+        Interceptor[] interceptors = registry.getInterceptors(advisor);
+        interceptorList.addAll(Arrays.asList(interceptors));
+    }
+}
+```
+
+或者，直接将遍历出的Advisor传进来，然后包装成一个`Interceptor[]`类型的`interceptors`，最后再把它添加到一开始创建的List集合中
+
+```java
+else {
+    Interceptor[] interceptors = registry.getInterceptors(advisor);
+    interceptorList.addAll(Arrays.asList(interceptors));
+}
+```
+
+也就是说，遍历所有的增强器，并将这些增强器封装成一个`Interceptor`。
+
+3. ### **遍历所有的增强器，将其转为Interceptor**
+
+我们按下`F6`快捷键让程序往下运行，即进入for循环中去遍历所有的Advisor。此时，inspect一下advisor变量的值，便能知道第一个增强器是ExposeInvocationInterceptor，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/92.jpg)
+
+然后来判断这个`Advisor`是不是`PointcutAdvisor`，按下`F6`快捷键让程序继续往下运行，发现能进入到if判读语句中，说明这个`Advisor`确实是`PointcutAdvisor`。继续让程序往下运行，即：
+
+```java
+MethodInterceptor[] interceptors = registry.getInterceptors(advisor);
+```
+
+4. **转换第一个增强器**
+
+我们按下`F5`快捷键进入`getInterceptors()`方法里面去一探究竟
+
+```java
+	@Override
+	public MethodInterceptor[] getInterceptors(Advisor advisor) throws UnknownAdviceTypeException {
+		List<MethodInterceptor> interceptors = new ArrayList<>(3);
+		Advice advice = advisor.getAdvice();
+		if (advice instanceof MethodInterceptor) {
+			interceptors.add((MethodInterceptor) advice);
+		}
+		for (AdvisorAdapter adapter : this.adapters) {
+			if (adapter.supportsAdvice(advice)) {
+				interceptors.add(adapter.getInterceptor(advisor));
+			}
+		}
+		if (interceptors.isEmpty()) {
+			throw new UnknownAdviceTypeException(advisor.getAdvice());
+		}
+		return interceptors.toArray(new MethodInterceptor[0]);
+	}
+```
+
+该方法的逻辑其实蛮简单的，就是**先拿到增强器，然后判断这个增强器是不是`MethodInterceptor`这种类型的，若是则直接添加进名为`interceptors`的`List`集合里面，若不是则使用`AdvisorAdapter`（增强器的适配器）将这个增强器转为`MethodInterceptor`这种类型，然后再添加进`List`集合里面，反正不管如何，最后都会将该`List`集合转换成`MethodInterceptor`数组返回出去。**
+
+按下`F6`快捷键让程序往下运行，发现程序会进入到第一个if判断语句中，说明拿到的第一个增强器（即ExposeInvocationInterceptor）是`MethodInterceptor`这种类型的，那么自然就会将其添加进List集合中。
+
+![](http://120.77.237.175:9080/photos/springanno/93.jpg)
+
+继续按下`F6`快捷键让程序往下运行，inspect一下adapters变量的值，发现它里面有3个增强器的适配器，它们分别是：
+
+1. `MethodBeforeAdviceAdapter`：专门来转前置通知的
+2. `AfterReturningAdviceAdapter`：专门来返回置通知的
+3. `ThrowsAdviceAdapter`：专门来异常置通知的
+
+此时，会使用到以上这3个增强器的适配器吗？并不会，因为程序继续往下运行的过程中，并不会进入到for循环里面的if判断语句中。
+
+接着，让程序继续往下运行，直至`getInterceptors()`方法执行完毕，并且该方法运行完会返回一个`MethodInterceptor`数组，该数组只有一个元素，即拿到的第一个增强器（即`ExposeInvocationInterceptor`）。
+
+![](http://120.77.237.175:9080/photos/springanno/94.jpg)
+
+让程序继续往下运行，这时程序就运行回`getInterceptorsAndDynamicInterceptionAdvice()`方法中了，如下图
+
+![](http://120.77.237.175:9080/photos/springanno/95.jpg)
+
+```
+传递过去的是第一个advisor,它里面特有的增强器是ExposeInvocationInterceptor,而返回的是一个ExposeInvocationInterceptor数组,该数组只有一个元素,并且
+```
+
+接着进入`getInterceptors()`打上断点,看其他的增强器是怎么转成`Interceptor`的。
+
+```java
+@Override
+public MethodInterceptor[] getInterceptors(Advisor advisor) throws UnknownAdviceTypeException {
+   List<MethodInterceptor> interceptors = new ArrayList<>(3);
+   Advice advice = advisor.getAdvice();
+   if (advice instanceof MethodInterceptor) {
+      interceptors.add((MethodInterceptor) advice);
+   }
+   for (AdvisorAdapter adapter : this.adapters) {
+      if (adapter.supportsAdvice(advice)) {
+         interceptors.add(adapter.getInterceptor(advisor));
+      }
+   }
+   if (interceptors.isEmpty()) {
+      throw new UnknownAdviceTypeException(advisor.getAdvice());
+   }
+   return interceptors.toArray(new MethodInterceptor[0]);
+}
+```
+
+5. #### **转换第二个增强器**
+
+此时，按下`F8`快捷键让程序运行到下一个断点，可以看到现在传递过来的是第二个`Advisor`，该`Advisor`持有的增强器是`AspectJAfterThrowingAdvice`，即异常通知。
+
+![](http://120.77.237.175:9080/photos/springanno/96.jpg)
+
+在按下`F6`快捷键让程序往下运行的过程中，可以看到，先是判断拿到的第二个增强器是不是`MethodInterceptor`这种类型的。但很显然，它正好就是这种类型，你只要查看一下`AspectJAfterThrowingAdvice`类的源码便知道了，如下图所示，该类实现了MethodInterceptor接口。
+
+```java
+public class AspectJAfterThrowingAdvice extends AbstractAspectJAdvice
+		implements MethodInterceptor, AfterAdvice, Serializable {
+	...		
+}
+```
+
+既然是，那么自然就会将其添加进List集合中
+
+继续按下`F6`快捷键让程序往下运行，此时，会使用到那3个增强器的适配器吗？并不会，因为程序继续往下运行的过程中，并不会进入到for循环里面的if判断语句中。
+
+当程序运行至`getInterceptors()`方法的最后一行代码时，该方法会返回一个`MethodInterceptor`数组，并且该数组只有一个元素，即拿到的第二个增强器（即`AspectJAfterThrowingAdvice`）。
+
+![](http://120.77.237.175:9080/photos/springanno/97.jpg)
+
+6. #### **转换第三个增强器**
+
+按下`F8`快捷键让程序运行到下一个断点，可以看到现在传递过来的是第三个`Advisor`，该Advisor持有的增强器是`AspectJAfterReturningAdvice`，即返回通知。
+
+![](http://120.77.237.175:9080/photos/springanno/98.jpg)
+
+按下`F6`快捷键让程序往下运行，发现程序并不会进入到第一个if判断语句中，说明拿到的第三个增强器（即`AspectJAfterReturningAdvice`）并不是`MethodInterceptor`这种类型。也就是说**有些通知方法是实现了`MethodInterceptor`接口的，也有些不是。** 如果不是的话，那么该怎么办呢？这时，就要使用到增强器的适配器了。
+
+让程序继续往下运行，可以看到现在使用会遍历`this.adapters`的里的三个增强器的适配器,当遍历到到第二个是AfterReturningAdviceAdapter，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/99.jpg)
+
+该适配器是专门来转返回通知的，很显然它肯定是支持转换这个`AspectJAfterReturningAdvice`（返回通知）的。那么，问题来了，该适配器是怎么将`AspectJAfterReturningAdvice`（返回通知）转换为`Interceptor`的呢？进入`getInterceptor()`方法里面一看便知，如下图所示，实际上就是拿到`Advice`（增强器），并将其包装成一个`Interceptor`而已。
+
+```java
+class AfterReturningAdviceAdapter implements AdvisorAdapter, Serializable {
+
+	@Override
+	public boolean supportsAdvice(Advice advice) {
+		return (advice instanceof AfterReturningAdvice);
+	}
+
+	@Override
+	public MethodInterceptor getInterceptor(Advisor advisor) {
+		AfterReturningAdvice advice = (AfterReturningAdvice) advisor.getAdvice();
+		return new AfterReturningAdviceInterceptor(advice);
+	}
+
+}
+```
+
+当程序运行至`getInterceptors()`方法的最后一行代码时，该方法会返回一个`MethodInterceptor`数组，并且该数组只有一个元素，即拿到的第三个增强器（即`AfterReturningAdviceInterceptor`）。
+
+![](http://120.77.237.175:9080/photos/springanno/100.jpg)
+
+7. #### **转换第四个增强器**
+
+按下`F8`快捷键让程序运行到下一个断点，可以看到现在传递过来的是第四个`Advisor`，该Advisor持有的增强器是`AspectJAfterAdvice`，即后置通知。
+
+![](http://120.77.237.175:9080/photos/springanno/101.jpg)
+
+然后，按下`F6`快捷键让程序往下运行，发现程序会进入到第一个if判断语句中，说明拿到的第四个增强器（即`AspectJAfterAdvice`）是`MethodInterceptor`这种类型的，那么自然就会将其添加进List集合中。
+
+继续按下`F6`快捷键让程序往下运行，此时，会使用到那3个增强器的适配器吗？并不会，因为程序继续往下运行的过程中，并不会进入到for循环里面的if判断语句中。
+
+当程序运行至`getInterceptors()`方法的最后一行代码时，该方法会返回一个`MethodInterceptor`数组，并且该数组只有一个元素，即拿到的第四个增强器（即`AspectJAfterAdvice`）
+
+![](http://120.77.237.175:9080/photos/springanno/102.jpg)
+
+8. #### **转换第五个增强器**
+
+按下`F8`快捷键让程序运行到下一个断点，可以看到现在传递过来的是第五个`Advisor`，该`Advisor`持有的增强器是`AspectJMethodBeforeAdvice`，即前置通知
+
+![](http://120.77.237.175:9080/photos/springanno/103.jpg)
+
+然后，按下`F6`快捷键让程序往下运行，发现程序并不会进入到第一个if判断语句中，说明拿到的第五个增强器（即`AspectJMethodBeforeAdvice`）并不是`MethodInterceptor`这种类型。如果不是的话，那么该怎么办呢？这时，就要使用到增强器的适配器了。
+
+让程序继续往下运行，可以看到现在使用的增强器的适配器是`MethodBeforeAdviceAdapter`，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/104.jpg)
+
+该适配器是专门来转前置通知的，很显然它肯定是支持转换这个`AspectJMethodBeforeAdvice`（前置通知）的。该适配器是怎么转换的呢？其实很简单，就是拿到`Advice`（增强器），然后将其包装成一个`Interceptor`而已，这前面我也讲过了。
+
+```java
+class MethodBeforeAdviceAdapter implements AdvisorAdapter, Serializable {
+
+	@Override
+	public boolean supportsAdvice(Advice advice) {
+		return (advice instanceof MethodBeforeAdvice);
+	}
+
+	@Override
+	public MethodInterceptor getInterceptor(Advisor advisor) {
+		MethodBeforeAdvice advice = (MethodBeforeAdvice) advisor.getAdvice();
+		return new MethodBeforeAdviceInterceptor(advice);
+	}
+
+}
+```
+
+当程序运行至`getInterceptors()`方法的最后一行代码时，该方法会返回一个`MethodInterceptor`数组，并且该数组只有一个元素，即拿到的第五个增强器（即`MethodBeforeAdviceInterceptor`）
+
+![](http://120.77.237.175:9080/photos/springanno/105.jpg)
+
+接着，让程序继续往下运行，将整个转换流程走完，直至程序运行回`DefaultAdvisorChainFactory.getInterceptorsAndDynamicInterceptionAdvice()`方法中
+
+紧接着，继续让程序往下运行，此时会返回一开始就创建的List集合
+
+![](http://120.77.237.175:9080/photos/springanno/106.jpg)
+
+可以看到，该List集合里面有5个拦截器，其中`AspectJAfterThrowingAdvice`和`AspectJAfterAdvice`这俩人家本来就是拦截器，而`AfterReturningAdviceInterceptor`和`MethodBeforeAdviceInterceptor`这俩是使用适配器重新转换之后的拦截器。
+
+最后，继续让程序往下运行，直至运行回`CglibAopProxy`类的`intercept()`方法中，如下图所示
+
+![](http://120.77.237.175:9080/photos/springanno/107.jpg)
+
+此时，将要执行的目标方法的拦截器链就获取到了，**拦截器链里面保存的其实就是每一个通知方法**
+
+9. #### **如果有拦截器链，那么怎么做呢**
+
+**什么叫拦截器链呢？所谓的拦截器链其实就是每一个通知方法又被包装为了方法拦截器。** 之后，目标方法的执行，就要使用到这个拦截器链机制。
+
+如果真的获取到了拦截器链，那么接下来会怎么做呢？很明显，这时程序会进入到`else`分支语句中，然后将需要执行的目标对象、目标方法以及拦截器链等所有相关信息传入`CglibMethodInvocation`类的有参构造器中，来创建一个`CglibMethodInvocation`对象，接着会调用其`proceed()`方法，并且该方法会有一个返回值
+
+![](http://120.77.237.175:9080/photos/springanno/108.jpg)
+
+接下来，我们就来看看到底是怎么来new这个CglibMethodInvocation对象的。先按下`F5`快捷键进入当前方法中，再按下`F7`快捷键从当前方法里面退出来，然后再按下`F5`快捷键进入当前方法中，这时程序会进入到CglibMethodInvocation匿名内部类的有参构造器中，如下
+
+```java
+public CglibMethodInvocation(Object proxy, @Nullable Object target, Method method,
+                             Object[] arguments, @Nullable Class<?> targetClass,
+                             List<Object> interceptorsAndDynamicMethodMatchers, MethodProxy methodProxy) {
+
+    super(proxy, target, method, arguments, targetClass, interceptorsAndDynamicMethodMatchers);
+
+    // Only use method proxy for public methods not derived from java.lang.Object
+    this.methodProxy = (Modifier.isPublic(method.getModifiers()) &&
+                        method.getDeclaringClass() != Object.class && !AopUtils.isEqualsMethod(method) &&
+                        !AopUtils.isHashCodeMethod(method) && !AopUtils.isToStringMethod(method) ?
+                        methodProxy : null);
+}
+```
+
+`new`出来了这个`CglibMethodInvocation`对象。
+
+`new`出来该对象以后，接下来就是来执行其`proceed()`方法了，相当于是来执行获取到的拦截器链，因为在`new`这个`CglibMethodInvocation对象的时候，会把拦截器链传过来，传过来以后，势必就要执行该拦截器链了，而整个的执行过程其实就是触发拦截器链的调用过程。
+
+10. #### **如果没有拦截器链，那么直接执行目标方法**
+
+获取完拦截器链之后，如果这个链是空的，也就是说并没有获取到拦截器链，那么程序就会进入到if判断语句中执行如下这行代码
+
+```java
+Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
+retVal = methodProxy.invoke(target, argsToUse);
+```
+
+这行代码的意思是什么呢？仔细看一下这行代码上面的注释，我们就能知道，它的意思是说将会跳过创建一个`MethodInvocation`对象，然后直接就来执行目标对象中的目标方法
+
+### 拦截器链的执行过程
+
+同在去`proceed()`方法里面去看一看，它到底是怎么执行的。按下`F5`快捷键进入该方法中，
+
+```java
+	private static class CglibMethodInvocation extends ReflectiveMethodInvocation {
+
+		@Nullable
+		private final MethodProxy methodProxy;
+
+		public CglibMethodInvocation(Object proxy, @Nullable Object target, Method method,
+				Object[] arguments, @Nullable Class<?> targetClass,
+				List<Object> interceptorsAndDynamicMethodMatchers, MethodProxy methodProxy) {
+
+			super(proxy, target, method, arguments, targetClass, interceptorsAndDynamicMethodMatchers);
+
+			// Only use method proxy for public methods not derived from java.lang.Object
+			this.methodProxy = (Modifier.isPublic(method.getModifiers()) &&
+					method.getDeclaringClass() != Object.class && !AopUtils.isEqualsMethod(method) &&
+					!AopUtils.isHashCodeMethod(method) && !AopUtils.isToStringMethod(method) ?
+					methodProxy : null);
+		}
+
+		@Override
+		@Nullable
+		public Object proceed() throws Throwable {
+			try {
+				return super.proceed();
+			}
+			catch (RuntimeException ex) {
+				throw ex;
+			}
+			catch (Exception ex) {
+				if (ReflectionUtils.declaresException(getMethod(), ex.getClass())) {
+					throw ex;
+				}
+				else {
+					throw new UndeclaredThrowableException(ex);
+				}
+			}
+		}
+
+		/**
+		 * Gives a marginal performance improvement versus using reflection to
+		 * invoke the target when invoking public methods.
+		 */
+		@Override
+		protected Object invokeJoinpoint() throws Throwable {
+			if (this.methodProxy != null) {
+				return this.methodProxy.invoke(this.target, this.arguments);
+			}
+			else {
+				return super.invokeJoinpoint();
+			}
+		}
+	}
+```
+
+可以看到，首先调用父类的proceed(),点击进去
+
+```java
+	@Override
+	@Nullable
+	public Object proceed() throws Throwable {
+		// We start with an index of -1 and increment early.
+		if (this.currentInterceptorIndex == this.interceptorsAndDynamicMethodMatchers.size() - 1) {
+			return invokeJoinpoint();
+		}
+
+		Object interceptorOrInterceptionAdvice =
+				this.interceptorsAndDynamicMethodMatchers.get(++this.currentInterceptorIndex);
+		if (interceptorOrInterceptionAdvice instanceof InterceptorAndDynamicMethodMatcher) {
+			// Evaluate dynamic method matcher here: static part will already have
+			// been evaluated and found to match.
+			InterceptorAndDynamicMethodMatcher dm =
+					(InterceptorAndDynamicMethodMatcher) interceptorOrInterceptionAdvice;
+			Class<?> targetClass = (this.targetClass != null ? this.targetClass : this.method.getDeclaringClass());
+			if (dm.methodMatcher.matches(this.method, targetClass, this.arguments)) {
+				return dm.interceptor.invoke(this);
+			}
+			else {
+				// Dynamic matching failed.
+				// Skip this interceptor and invoke the next in the chain.
+				return proceed();
+			}
+		}
+		else {
+			// It's an interceptor, so we just invoke it: The pointcut will have
+			// been evaluated statically before this object was constructed.
+			return ((MethodInterceptor) interceptorOrInterceptionAdvice).invoke(this);
+		}
+	}
+```
+
+这儿首先是有一个成员变量，即`currentInterceptorIndex`，翻译过来应该是当前拦截器的索引。索引的默认值是-1，点进该成员变量里面一看便知。
+
+```java
+private int currentInterceptorIndex = -1;
+```
+
+然后，会在这儿做一个判断，即判断`currentInterceptorIndex`成员变量的值（也即索引的值）是否等于`this.interceptorsAndDynamicMethodMatchers.size() - 1`。你可能要问了，这个`interceptorsAndDynamicMethodMatchers`到底是什么啊？`inspect`一下它便知道了，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/109.jpg)
+
+可以看到，`interceptorsAndDynamicMethodMatchers`其实就是一个`ArrayList`集合，它里面保存有5个拦截器。
+
+也就是说，在这儿是来判断-1是否等于5-1的，很显然，并不相等，那什么时候相等呢？这得分两种情况来看：
+
+1. 如果我们没有获取到拦截器链，那么该`ArrayList`集合必然就是空的，此时就相当于是在判断-1是否等于0-1，你说等不等呢？
+2. `currentInterceptorIndex`成员变量是来记录我们当前拦截器的索引的（从-1开始），有可能正好当前拦截器的索引为4，此时就相当于是在判断4是否等于5（拦截器总数）-1，你说等不等呢？
+
+不管是哪种情况，程序都会进入到`i`f判断语句中。就以第一种情况来说，此时并没有拦截器链，那么必然就会调用`invokeJoinpoint()`方法。我们可以点进该方法里面去一探究竟，发现进入到了`ReflectiveMethodInvocation`类的`invokeJoinpoint()`方法中，如下图所示。
+
+```java
+	@Nullable
+	protected Object invokeJoinpoint() throws Throwable {
+		return AopUtils.invokeJoinpointUsingReflection(this.target, this.method, this.arguments);
+	}
+```
+
+再点进`invokeJoinpointUsingReflection()`方法里面，发现其实就是利用反射来执行目标方法，如下图所示。
+
+```java
+	@Nullable
+	public static Object invokeJoinpointUsingReflection(@Nullable Object target, Method method, Object[] args)
+			throws Throwable {
+
+		// Use reflection to invoke the method.
+		try {
+			ReflectionUtils.makeAccessible(method);
+            //其实就是利用反射来执行目标方法
+			return method.invoke(target, args);
+		}
+		catch (InvocationTargetException ex) {
+			// Invoked method threw a checked exception.
+			// We must rethrow it. The client won't see the interceptor.
+			throw ex.getTargetException();
+		}
+		catch (IllegalArgumentException ex) {
+			throw new AopInvocationException("AOP configuration seems to be invalid: tried calling method [" +
+					method + "] on target [" + target + "]", ex);
+		}
+		catch (IllegalAccessException ex) {
+			throw new AopInvocationException("Could not access method [" + method + "]", ex);
+		}
+	}
+```
+
+所以，我们可以得出这样一个结论：**如果没有拦截器链，或者当前拦截器的索引和拦截器总数-1的大小一样，那么便直接执行目标方法。** 我们先分析到这，因为过一会就可以看到这个过程了。
+
+好，我们还是回到`proceed()`方法里面，此时是来判断`currentInterceptorInde`成员变量的值（即-1）是否等于拦截器总数（5）-1的，很显然并不相等，所以程序并不会进入到if判断语句中。
+
+按下`F6`快捷键让程序往下运行，运行至第162行代码处时，可以看到会先让`currentInterceptorIndex`成员变量自增，即由-1自增为0，然后再从拦截器链里面获取第0号拦截器，即`ExposeInvocationInterceptor`。
+
+```java
+//这时,会从拦截器链里面获取第0号拦截器,即ExposeInvocationInterceptor
+Object interceptorOrInterceptionAdvice =
+				this.interceptorsAndDynamicMethodMatchers.get(++this.currentInterceptorIndex);
+```
+
+也就是说，在`proceed()`方法里面，我们会先来获取到第0号拦截器。第0号拦截器我们拿到以后，那么接下来该怎么办呢？继续按下`F6`快捷键让程序往下运行，如下
+
+```java
+return ((MethodInterceptor) interceptorOrInterceptionAdvice).invoke(this);
+```
+
+可以看到，会调用当前拦截器的`invoke()`方法，而且会将`this`指代的对象传入该方法中。那么`this`指代的又是哪一个对象呢？`inspect`一下`this`，我们便知道它指代的就是之前创建的`CglibMethodInvocation`对象
+
+![](http://120.77.237.175:9080/photos/springanno/110.jpg)
+
+接下来，我们就进去`invoke()`方法里面去看一看，它到底是怎么执行的。按下`F5`快捷键进入该方法中，可以看到，这儿是先从`invocation`里面get到一个`MethodInvocation`实例。
+
+```java
+	@Override
+	public Object invoke(MethodInvocation mi) throws Throwable {
+		MethodInvocation oldInvocation = invocation.get();
+		invocation.set(mi);
+		try {
+			return mi.proceed();
+		}
+		finally {
+			invocation.set(oldInvocation);
+		}
+	}
+```
+
+你不禁就要问了，这个`invocation`是啥？这个`MethodInvocation`又是啥？点击`invocation`成员变量进去看一下，可以看到它是一个`ThreadLocal`，`ThreadLocal`就是同一个线程来共享数据的，它要共享的数据就是`MethodInvocation`实例，而这个`MethodInvocation`实例其实就是之前创建的`CglibMethodInvocation`对象。
+
+```java
+	private static final ThreadLocal<MethodInvocation> invocation =
+			new NamedThreadLocal<>("Current AOP method invocation");
+```
+
+由于这是第一次，`ThreadLocal`里面还没有共享数据，因此接下来便会在当前线程中保存`CglibMethodInvocation`对象。然后就会来执行`CglibMethodInvocation`对象的`proceed()`方法
+
+说白了，**执行拦截器的`invoke()`方法其实就是执行`CglibMethodInvocation`对象的`proceed()`方法。**
+
+接下来，我们就再进去`proceed()`方法里面去看一看，它到底是怎么执行的。按下`F5`快捷键进入该方法中，你会发现这又是同样熟悉的那套,又直接调用父类的`super.proceed()`，只不过现在是来判断`currentInterceptorIndex`成员变量的值（即0，因为自增过一次，所以已经由之前的-1变成了0）是否等于拦截器总数（5）-1的，很显然并不相等，所以程序并不会进入到if判断语句中
+
+```
+		@Override
+		@Nullable
+		public Object proceed() throws Throwable {
+			try {
+				return super.proceed();
+			}
+			catch (RuntimeException ex) {
+				throw ex;
+			}
+			catch (Exception ex) {
+				if (ReflectionUtils.declaresException(getMethod(), ex.getClass())) {
+					throw ex;
+				}
+				else {
+					throw new UndeclaredThrowableException(ex);
+				}
+			}
+		}
+```
+
+继续按下`F6`快捷键让程序往下运行，运行至第162行代码处时，可以看到会先让`currentInterceptorIndex`成员变量自增，即由0自增为1，然后再从拦截器链里面获取第1号拦截器，即`AspectJAfterThrowingAdvice`
+
+![](http://120.77.237.175:9080/photos/springanno/111.jpg)
+
+也就是说，**每执行一次proceed()方法，当前拦截器的索引（即currentInterceptorIndex成员变量）都会自增一次。**
+
+第1号拦截器我们拿到以后，那么接下来该怎么办呢？继续按下`F6`快捷键让程序往下运行，发现运行到如下
+
+```java
+return ((MethodInterceptor) interceptorOrInterceptionAdvice).invoke(this);
+```
+
+可以看到，又会调用当前拦截器的`invoke()`方法，并且会将`CglibMethodInvocation`对象传入该方法中。
+
+这时，你会发现，现在是从第一个拦截器（即`ExposeInvocationInterceptor`）锁定到了下一个拦截器（即`AspectJAfterThrowingAdvice`），而且我们也看到了，所有拦截器都会调用`invoke()`方法。
+
+接着，我们就再进去`invoke()`方法里面去看一看，它到底是怎么执行的。按下`F5`快捷键进入该方法中，可以看到，当前拦截器（即`AspectJAfterThrowingAdvice`）的`invoke()`方法的执行逻辑是下面这样子的。
+
+```java
+	@Override
+	public Object invoke(MethodInvocation mi) throws Throwable {
+		try {
+			return mi.proceed();
+		}
+		catch (Throwable ex) {
+			if (shouldInvokeOnThrowing(ex)) {
+				invokeAdviceMethod(getJoinPointMatch(), null, ex);
+			}
+			throw ex;
+		}
+	}
+```
+
+可以看到又是来调用`CglibMethodInvocation`对象的`proceed()`方法，其中`mi`变量指代的就是`CglibMethodInvocation`对象。
+
+至此，我们可以得出这样一个结论：**每执行一次proceed()方法，当前拦截器的索引（即`currentInterceptorIndex`成员变量）都会自增一次，并且还会拿到下一个拦截器。这个流程会不断地循环往复，直至拿到最后一个拦截器为止。**
+
+接下来，我们就再进去`proceed()`方法里面去看一看，它到底是怎么执行的。按下`F5`快捷键进入该方法中，你会发现又是同样熟悉的那套，只不过现在是来判断`currentInterceptorIndex`成员变量的值（即1，因为自增过一次，所以已经由之前的0变成了1）是否等于拦截器总数（5）-1的，很显然并不相等，所以程序并不会进入到if判断语句中
+
+继续按下`F6`快捷键让程序往下运行，可以看到会先让`currentInterceptorIndex`成员变量自增，即由1自增为2，然后再从拦截器链里面获取第2号拦截器，即`AfterReturningAdviceInterceptor`。
+
+![](http://120.77.237.175:9080/photos/springanno/112.jpg)
+
+第2号拦截器我们拿到以后，那么接下来该怎么办呢？继续按下`F6`快捷键让程序往下运行
+
+```java
+return ((MethodInterceptor) interceptorOrInterceptionAdvice).invoke(this);
+```
+
+可以看到，又会调用当前拦截器的`invoke()`方法，并且会将`CglibMethodInvocation`对象传入该方法中。
+
+这时，你会发现，现在是从上一个拦截器（即`AspectJAfterThrowingAdvice`）锁定到了当前这个拦截器（即`AfterReturningAdviceInterceptor`），可想而知，当前这个拦截器又该要锁定到下一个拦截器了。
+
+接着，我们就再进去`invoke()`方法里面去看一看，它到底是怎么执行的。按下`F5`快捷键进入该方法中，可以看到，又是来调用`CglibMethodInvocation`对象的`proceed()`方法，其中`mi`变量指代的就是`CglibMethodInvocation`对象
+
+```java
+	@Override
+	public Object invoke(MethodInvocation mi) throws Throwable {
+		Object retVal = mi.proceed();
+		this.advice.afterReturning(retVal, mi.getMethod(), mi.getArguments(), mi.getThis());
+		return retVal;
+	}
+```
+
+接下来，我们就再进去`proceed()`方法里面去看一看，它到底是怎么执行的。按下`F5`快捷键进入该方法中，你会发现又是同样熟悉的那套，只不过现在是来判断`currentInterceptorIndex`成员变量的值（即2，因为自增过一次，所以已经由之前的1变成了2）是否等于拦截器总数（5）-1的，很显然并不相等，所以程序并不会进入到if判断语句中
+
+继续按下`F6`快捷键让程序往下运行，可以看到会先让`currentInterceptorIndex`成员变量自增，即由2自增为3，然后再从拦截器链里面获取第3号拦截器，即`AspectJAfterAdvice`。
+
+![](http://120.77.237.175:9080/photos/springanno/113.jpg)
+
+第3号拦截器我们拿到以后，那么接下来该怎么办呢？继续按下`F6`快捷键让程序往下运行，如下图所示。
+
+```java
+return ((MethodInterceptor) interceptorOrInterceptionAdvice).invoke(this);
+```
+
+可以看到，又会调用当前拦截器的`invoke()`方法，并且会将`CglibMethodInvocation`对象传入该方法中。
+
+这时，你会发现，现在是从上一个拦截器（即`AfterReturningAdviceInterceptor`）锁定到了当前这个拦截器（即`AspectJAfterAdvice`），可想而知，当前这个拦截器又该要锁定到下一个拦截器了。
+
+接着，我们就再进去`nvoke()`方法里面去看一看，它到底是怎么执行的。按下`F5`快捷键进入该方法中，可以看到，又是来调用`CglibMethodInvocation`对象的`proceed()`方法，其中`mi`变量指代的就是`CglibMethodInvocation`对象
+
+```java
+	@Override
+	public Object invoke(MethodInvocation mi) throws Throwable {
+		try {
+			return mi.proceed();
+		}
+		finally {
+			invokeAdviceMethod(getJoinPointMatch(), null, null);
+		}
+	}
+```
+
+现在，你是否明白了这样一个道理，就是**`invoke()`方法里面会调用`proceed()`方法，而这个`proceed()`方法又是寻找下一个拦截器**？
+
+接下来，我们就再进去`proceed()`方法里面去看一看，它到底是怎么执行的。按下`F5`快捷键进入该方法中，你会发现又是同样熟悉的那套，只不过现在是来判断`currentInterceptorIndex成`员变量的值（即3，因为自增过一次，所以已经由之前的2变成了3）是否等于拦截器总数（5）-1的，很显然并不相等，所以程序并不会进入到if判断语句中。
+
+继续按下`F6`快捷键让程序往下运行，可以看到会先让`currentInterceptorIndex`成员变量自增，即由3自增为4，然后再从拦截器链里面获取第4号拦截器，即`MethodBeforeAdviceInterceptor`，它已是最后一个拦截器了
+
+![](http://120.77.237.175:9080/photos/springanno/114.jpg)
+
+最后一个拦截器我们拿到以后，那么接下来该怎么办呢？继续按下`F6`快捷键让程序往下运行，如下所示。
+
+```java
+return ((MethodInterceptor) interceptorOrInterceptionAdvice).invoke(this);
+```
+
+可以看到，又会调用当前拦截器的`invoke()`方法，并且会将`CglibMethodInvocation`对象传入该方法中。
+
+这时，你会发现，现在是从上一个拦截器（即`AspectJAfterAdvice`）锁定到了当前最后这个拦截器（即`MethodBeforeAdviceInterceptor`）。
+
+接着，我们就再进去`invoke()`方法里面去看一看，它到底是怎么执行的。按下`F5`快捷键进入该方法中，可以看到，现在这个`invoke()`方法里面的逻辑有点变化，它会先调用前置通知，再来调用`CglibMethodInvocation`对象的`proceed()`方法，其中mi变量指代的就是`CglibMethodInvocation`对象。
+
+```java
+	@Override
+	public Object invoke(MethodInvocation mi) throws Throwable {
+		this.advice.before(mi.getMethod(), mi.getArguments(), mi.getThis());
+		return mi.proceed();
+	}
+```
+
+#### 调用前置通知
+
+继续按下`F6`快捷键让程序往下运行，会发现`MethodBeforeAdviceInterceptor.invoke()`这个拦截器总算是做一点事了，即调用前置通知,并且控制台也打印出了前置通知要输出的内容
+
+![](http://120.77.237.175:9080/photos/springanno/115.jpg)
+
+前置通知调用完之后，会再来调用`CglibMethodInvocation`对象的`proceed()`方法。
+
+接下来，我们就再进去`proceed()`方法里面去看一看，它到底是怎么执行的。按下`F5`快捷键进入该方法中，你会发现又是同样熟悉的那套，只不过现在是来判断`currentInterceptorIndex`成员变量的值（即4，因为自增过一次，所以已经由之前的3变成了4）是否等于拦截器总数（5）-1的，很显然是相等的，所以程序会进入到if判断语句中。
+
+![](http://120.77.237.175:9080/photos/springanno/116.jpg)
+
+这时，会直接利用反射来执行目标方法。继续按下`F6`快捷键让程序往下运行，你会看到控制台打印出了目标方法中要输出的内容，这表明目标方法已执行完了
+
+```java
+		@Override
+		protected Object invokeJoinpoint() throws Throwable {
+			if (this.methodProxy != null) {
+                	//利用返射执行目标方法
+				return this.methodProxy.invoke(this.target, this.arguments);
+			}
+			else {
+				return super.invokeJoinpoint();
+			}
+		}
+```
+
+![](http://120.77.237.175:9080/photos/springanno/117.jpg)
+
+也就是说，**前置通知调用完之后，接着是来调用目标方法的，并且目标方法调用完之后会返回到上一个拦截器（即AspectJAfterAdvice）中。**
+
+#### 调用后置通知
+
+执行完目标方法并返回到上一个拦截器（即`AspectJAfterAdvice`）中之后，可以看到会在`finally`代码块中执行后置通知，因为`AspectJAfterAdvice`是一个后置通知的拦截器。`
+
+继续按下`F6`快捷键让程序往下运行,看到控制台打印出了后置通知要输出的内容,这表明当前拦截器（即AspectJAfterAdvice）的invoke()方法就调用完了
+
+![](http://120.77.237.175:9080/photos/springanno/118.jpg)
+
+从上图中可以知道，调用完后置通知之后，再次返回到了第二个拦截器（即`AspectJAfterThrowingAdvice`）中
+
+#### 如果目标方法运行时没有抛异常，那么调用返回通知
+
+如果目标方法运行时没有抛异常，那么后置通知调用完之后，就应该返回到第三个拦截器（即`AfterReturningAdviceInterceptor`）中。
+
+![](http://120.77.237.175:9080/photos/springanno/122.jpg)
+
+这个拦截器并没有对异常进行处理，如果有异常而是直接抛给了上一个拦截器（即`AspectJAfterThrowingAdvice`）
+
+`AspectJAfterThrowingAdvice`,在这个拦截器的`invoke()`方法中才有`catch`语句捕获到异常。
+
+先来看一下`AfterReturningAdviceInterceptor`这个拦截器的invoke()方法，看看它到底是怎么执行的，如下图所示。
+
+```java
+	@Override
+	public Object invoke(MethodInvocation mi) throws Throwable {
+		//只有这里执行没有问题,才会调用返回通知,而且在invoke()方法中,我们并没有看到try catch代码块,所以这儿一旦抛了异常,那么便会直接抛给上一个拦截器
+		Object retVal = mi.proceed();
+        //这里调用返回通知
+		this.advice.afterReturning(retVal, mi.getMethod(), mi.getArguments(), mi.getThis());
+		return retVal;
+	}
+```
+
+可以看到，只有`Object retVal = mi.proceed();`执行时没有问题，才会调用返回通知。
+
+也就是说，**返回通知只有在目标方法运行没抛异常的时候才会被调用**
+
+#### 如果目标方法运行时抛异常，那么调用异常通知
+
+但是，现在目标方法运行时抛了异常，所以在后置通知调用完之后，返回到了第三个拦截器（即`AfterReturningAdviceInterceptor`）中。
+
+![](http://120.77.237.175:9080/photos/springanno/121.jpg)
+
+该拦截器捕获到异常之后，便会调用异常通知。按下`F6`快捷键让程序往下运行，你会看到控制台打印出了异常通知要输出的内容，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/119.jpg)
+
+异常通知调用完之后，如果有异常，整个的这个异常还会被抛出去，而且是一层一层地往上抛，有人处理就处理，没人处理就抛给虚拟机。
+
+至此，整个拦截器链的执行过程，我们就知道的非常清楚了。更具体一点的说，我们知道了目标方法的整个执行流程，即先执行前置通知，然后再来执行目标方法，接着再来执行后置通知，这三步是固定的。最后，如果目标方法运行时没有抛异常，那么调用返回通知，如果目标方法运行时抛了异常，那么调用异常通知。
+
+![](http://120.77.237.175:9080/photos/springanno/120.png)
+
+**小结**
+
+整个拦截器链的执行过程，我们总结一下，其实就是链式获取每一个拦截器，然后执行拦截器的invoke()方法，每一个拦截器等待下一个拦截器执行完成并返回以后，再来执行其invoke()方法。通过拦截器链这种机制，保证了通知方法与目标方法的执行顺序。
+
+## AOP原理总结
+
+最后，我们还需要对AOP原理做一个简单的总结，完美结束对其研究的旅程。
+
+1. 利用`@EnableAspectJAutoProxy`注解来开启AOP功能
+
+2. 这个AOP功能是怎么开启的呢？主要是通过`@EnableAspectJAutoProxy`注解向IOC容器中注册一个`AnnotationAwareAspectJAutoProxyCreator`组件来做到这点的
+
+3. `AnnotationAwareAspectJAutoProxyCreator`组件是一个后置处理器
+
+4. 该后置处理器是怎么工作的呢？在IOC容器创建的过程中，我们就能清楚地看到这个后置处理器是如何创建以及注册的，以及它的工作流程。
+
+   1. 首先，在创建IOC容器的过程中，会调用`refresh()`方法来刷新容器，而在刷新容器的过程中有一步是来注册后置处理器的，如下所示：
+
+      ```java
+      registerBeanPostProcessors(beanFactory); // 注册后置处理器，在这一步会创建AnnotationAwareAspectJAutoProxyCreator对象
+      ```
+
+      其实，这一步会为所有后置处理器都创建对象 
+
+   2. 在刷新容器的过程中还有一步是来完成`BeanFactory`的初始化工作的，如下所示：
+
+      ```java
+      finishBeanFactoryInitialization(beanFactory); // 完成BeanFactory的初始化工作。所谓的完成BeanFactory的初始化工作，其实就是来创建剩下的单实例bean的。
+      ```
+
+      很显然，剩下的单实例`bean`自然就包括`MathCalculator`（业务逻辑类）和`LogAspects`（切面类）这两个`bean`，因此这两个bean就是在这儿被创建的。
+
+      1. 创建业务逻辑组件和切面组件
+
+      2. 在这两个组件创建的过程中，最核心的一点就是`AnnotationAwareAspectJAutoProxyCreator`（后置处理器）会来拦截这俩组件的创建过程
+
+      3. 怎么拦截呢？主要就是在组件创建完成之后，判断组件是否需要增强。如需要，则会把切面里面的通知方法包装成增强器，然后再为业务逻辑组件创建一个代理对象。我们也认真仔细探究过了，在为业务逻辑组件创建代理对象的时候，使用的是`cglib`来创建动态代理的。当然了，如果业务逻辑类有实现接口，那么就使用`jdk`来创建动态代理。一旦这个代理对象创建出来了，那么它里面就会有所有的增强器。
+
+         这个代理对象创建完以后，`IOC`容器也就创建完了。接下来，便要来执行目标方法了。
+
+5. 执行目标方法
+
+      1. 此时，其实是代理对象来执行目标方法
+      2. 使用`CglibAopProxy`类的`intercept()`方法来拦截目标方法的执行，拦截的过程如下：
+         1. 得到目标方法的拦截器链，所谓的拦截器链其实就是每一个通知方法又被包装为了方法拦截器，即`MethodInterceptor`
+         2. 利用拦截器的链式机制，依次进入每一个拦截器中进行执行
+         3. 最终，整个的执行效果就会有两套：
+            - 目标方法正常执行：前置通知→目标方法→后置通知→返回通知
+            - 目标方法出现异常：前置通知→目标方法→后置通知→异常通知
+
+# 声明式事务
+
+pom
+
+```java
+<!--添加spring-jdbc模块的依赖--> 
+<dependency>
+     <groupId>org.springframework</groupId>
+     <artifactId>spring-jdbc</artifactId>
+     <version>5.2.6.RELEASE</version>
+ </dependency>
+     <!--添加MySQL数据库驱动的依赖-->
+     <dependency>
+         <groupId>mysql</groupId>
+         <artifactId>mysql-connector-java</artifactId>
+         <version>6.0.6</version>
+     </dependency>
+```
+
+## 配置数据源以及JdbcTemplate
+
+```java
+@EnableTransactionManagement	//开启事务管理
+@ComponentScan("com.anno")
+@Configuration
+public class TxConfig {
+    // 注册c3p0数据源
+    @Bean
+    public DataSource dataSource() throws Exception {
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setJdbcUrl("jdbc:mysql://120.77.237.175:9306/test?serverTimezone=Asia/Shanghai");
+        dataSource.setDriverClass("com.mysql.jdbc.Driver");
+        dataSource.setUser("root");
+        dataSource.setPassword("123456");
+        return dataSource;
+
+    }
+
+    @Bean
+    public JdbcTemplate jdbcTemplate() throws Exception {
+        //Spring对@Configuration类会特殊处理；给容器中加组件的方法，多次调用都只是从容器中找组件
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource());
+        return jdbcTemplate;
+    }
+
+    //注册事务管理器在容器中
+    @Bean
+    public PlatformTransactionManager transactionManager() throws Exception {
+        return new DataSourceTransactionManager(dataSource());
+    }
+}
+```
+
+
+
+```java
+@Repository
+public class UserDao {
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public void insert() {
+        String sql = "INSERT INTO `tbl_user`(username,age) VALUES(?,?)";
+        String username = UUID.randomUUID().toString().substring(0, 5);
+        jdbcTemplate.update(sql, username, 19);
+    }
+}
+```
+
+```java
+@Service
+public class UserService {
+
+    @Autowired
+    private UserDao userDao;
+
+    @Transactional	//事务,当有异常时回滚
+    public void insertUser() {
+        userDao.insert();
+        System.out.println("插入完成...");
+        int i = 10 / 0;
+    }
+}
+```
+
+测试
+
+```java
+public class IOCTest_Tx {
+    @Test
+    public void test01() {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(TxConfig.class);
+        UserService userService = applicationContext.getBean(UserService.class);
+        userService.insertUser();
+        applicationContext.close();
+    }
+}
+```
+
+## 源码分析
+
+### @EnableTransactionManagement
+
+在配置类上添加`@EnableTransactionManagement`注解，便能够开启基于注解的事务管理功能。那下面我们就来看一看它的源码，如下图所示。
+
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Import(TransactionManagementConfigurationSelector.class)
+public @interface EnableTransactionManagement {
+
+	boolean proxyTargetClass() default false;
+
+	AdviceMode mode() default AdviceMode.PROXY;
+
+	int order() default Ordered.LOWEST_PRECEDENCE;
+
+}
+```
+
+从源码中可以看出，`@EnableTransactionManagement`注解使用@Import注解给容器中引入了`TransactionManagementConfigurationSelector`组件。那这个`TransactionManagementConfigurationSelector`又是啥呢？它其实是一个`ImportSelector`。
+
+这是怎么得出来的呢？我们可以点到`TransactionManagementConfigurationSelector`类中一看究竟，如下图所示，发现它继承了一个类，叫`AdviceModeImportSelector`。
+
+```java
+public class TransactionManagementConfigurationSelector extends AdviceModeImportSelector<EnableTransactionManagement> {
+
+	/**
+	 * Returns {@link ProxyTransactionManagementConfiguration} or
+	 * {@code AspectJ(Jta)TransactionManagementConfiguration} for {@code PROXY}
+	 * and {@code ASPECTJ} values of {@link EnableTransactionManagement#mode()},
+	 * respectively.
+	 */
+	@Override
+	protected String[] selectImports(AdviceMode adviceMode) {
+		switch (adviceMode) {
+			case PROXY:
+				return new String[] {AutoProxyRegistrar.class.getName(),
+						ProxyTransactionManagementConfiguration.class.getName()};
+			case ASPECTJ:
+				return new String[] {determineTransactionAspectClass()};
+			default:
+				return null;
+		}
+	}
+
+	private String determineTransactionAspectClass() {
+		return (ClassUtils.isPresent("javax.transaction.Transactional", getClass().getClassLoader()) ?
+				TransactionManagementConfigUtils.JTA_TRANSACTION_ASPECT_CONFIGURATION_CLASS_NAME :
+				TransactionManagementConfigUtils.TRANSACTION_ASPECT_CONFIGURATION_CLASS_NAME);
+	}
+
+}
+```
+
+然后再次点到`AdviceModeImportSelector`类中，如下图所示，发现它实现了一个接口，叫`ImportSelector`,具体可看上面的介绍。
+
+```java
+public abstract class AdviceModeImportSelector<A extends Annotation> implements ImportSelector {
+	...
+}
+```
+
+说到底，其实它是用于给容器中快速导入一些组件的，到底要导入哪些组件，就看它会返回哪些要导入到容器中的组件的全类名。
+
+我们可以看一下`TransactionManagementConfigurationSelector`类的源码，看看它里面到底是怎么写的。其实在上面我们就看清楚该类的源码了，在它里面会做一个`switch`判断，如果`adviceMode`是`PROXY`，那么就会返回一个`String[]`，该`String`数组如下所示
+
+```java
+new String[] {AutoProxyRegistrar.class.getName(),
+						ProxyTransactionManagementConfiguration.class.getName()}
+```
+
+这说明会向容器中导入`AutoProxyRegistrar`和`ProxyTransactionManagementConfiguration`这两个组件。
+
+如果`adviceMode`是`ASPECTJ`，那么便会返回如下这样一个`String[]`。
+
+```java
+new String[] {determineTransactionAspectClass()}
+```
+
+点`TRANSACTION_ASPECT_CONFIGURATION_CLASS_NAME,JTA_TRANSACTION_ASPECT_CONFIGURATION_CLASS_NAME`一下，可以看到，它其实就是`AspectJTransactionManagementConfiguration`类的全类名，如下图所示
+
+![](http://120.77.237.175:9080/photos/springanno/123.jpg)
+
+也就是说，如果`adviceMode`是`ASPECTJ`，那么就会向容器中导入一个`AspectJTransactionManagementConfiguration`组件。只可惜，它和我们研究声明式事务的原理没有半毛钱的关系。
+
+那么问题来了，`AdviceMode`又是个啥呢？点它，发现它是一个枚举，如下
+
+```java
+public enum AdviceMode {
+
+   /**
+    * JDK proxy-based advice.
+    */
+   PROXY,
+
+   /**
+    * AspectJ weaving-based advice.
+    */
+   ASPECTJ
+
+}
+```
+
+这个枚举有啥子用呢？我们可以再来看一下`@EnableTransactionManagement`注解的源码，发现它里面会定义一个`mode`属性，且其默认值就是`AdviceMode.PROXY`。既然如此，那么便会进入到`TransactionManagementConfigurationSelector`类的`switch`语句的`case PROXY`选项中，这时，就会向容器中快速导入两个组件，一个叫`AutoProxyRegistrar`，一个叫`ProxyTransactionManagementConfiguration`。
+
+接下来，我们便要来分析这两个组件的功能了，只要分析清楚了，声明式事务的原理就呼之欲出了。
+
+### AutoProxyRegistrar
+
+```java
+public class AutoProxyRegistrar implements ImportBeanDefinitionRegistrar {
+
+   private final Log logger = LogFactory.getLog(getClass());
+
+   @Override
+   public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
+      boolean candidateFound = false;
+      Set<String> annTypes = importingClassMetadata.getAnnotationTypes();
+      for (String annType : annTypes) {
+         AnnotationAttributes candidate = AnnotationConfigUtils.attributesFor(importingClassMetadata, annType);
+         if (candidate == null) {
+            continue;
+         }
+         Object mode = candidate.get("mode");
+         Object proxyTargetClass = candidate.get("proxyTargetClass");
+         if (mode != null && proxyTargetClass != null && AdviceMode.class == mode.getClass() &&
+               Boolean.class == proxyTargetClass.getClass()) {
+            candidateFound = true;
+            if (mode == AdviceMode.PROXY) {
+               AopConfigUtils.registerAutoProxyCreatorIfNecessary(registry);
+               if ((Boolean) proxyTargetClass) {
+                  AopConfigUtils.forceAutoProxyCreatorToUseClassProxying(registry);
+                  return;
+               }
+            }
+         }
+      }
+      if (!candidateFound && logger.isInfoEnabled()) {
+         String name = getClass().getSimpleName();
+         logger.info(String.format("%s was imported but no annotations were found " +
+               "having both 'mode' and 'proxyTargetClass' attributes of type " +
+               "AdviceMode and boolean respectively. This means that auto proxy " +
+               "creator registration and configuration may not have occurred as " +
+               "intended, and components may not be proxied as expected. Check to " +
+               "ensure that %s has been @Import'ed on the same class where these " +
+               "annotations are declared; otherwise remove the import of %s " +
+               "altogether.", name, name, name));
+      }
+   }
+
+}
+```
+
+它实现了一个接口，叫`ImportBeanDefinitionRegistrar`具体可看上面的`ImportBeanDefinitionRegistrar`介绍,这个`AutoProxyRegistrar`组件其实就是用来向容器中注册`bean`的，那你就应该清楚，最终会调用该组件的`registerBeanDefinitions()`方法来向容器中注册`bean`
+
+么会向容器中注册什么`bean`呢？我们仔细地看一下`AutoProxyRegistrar`类中的`registerBeanDefinitions()`方法,如上
+
+在该方法中先是通过如下一行代码来获取各种注解类型，这儿需要特别注意的是，这里是拿到所有的注解类型，而不是只拿`@EnableAspectJAutoProxy`这个类型的。因为`mode`、`proxyTargetClass`等属性会直接影响到代理的方式，而拥有这些属性的注解至少有`@EnableTransactionManagement`、`@EnableAsync`以及`@EnableCaching`等等，甚至还有启用`AOP`的注解，即`@EnableAspectJAutoProxy`，它也能设置`proxyTargetClass`这个属性的值，因此也会产生关联影响。
+
+```java
+Set<String> annTypes = importingClassMetadata.getAnnotationTypes();
+```
+
+然后是拿到注解里的`mode`、`proxyTargetClass`这两个属性的值，如下图所示。
+
+```java
+Object mode = candidate.get("mode");
+Object proxyTargetClass = candidate.get("proxyTargetClass");
+```
+
+注意，如果这儿的注解是`@Configuration`或者别的其他注解的话，那么获取到的这俩属性的值就是null了。
+
+接着做一个判断，如果存在`mode`、`proxyTargetClass`这两个属性，并且这两个属性的`class`类型也都是对的，那么便会进入到if判断语句中，这样，其余注解就相当于都被挡在外面了。
+
+要是真进入到了if判断语句中，是不是意味着找到了候选的注解（例如`@EnableTransactionManagement`）呢？你仔细想一下，是不是这回事。找到了候选的注解之后，就将`candidateFound`标识置为`true`。
+
+紧接着会再做一个判断，即判断找到的候选注解中的`mode`属性的值是否为`AdviceMode.PROXY`，若是则会调用我们熟悉的`AopConfigUtils`工具类的`registerAutoProxyCreatorIfNecessary`方法。相信大家也很熟悉这个方法了，它主要是来向容器中注册一个`InfrastructureAdvisorAutoProxyCreator`组件的。
+
+继续往下看`AutoProxyRegistrar`类的`registerBeanDefinitions()`方法。这时，又会做一个判断，要是找到的候选注解设置了`proxyTargetClass`这个属性的值，并且值为`true`，那么便会进入到下面的if判断语句中，**看要不要强制使用CGLIB的方式**。
+
+如果此时找到的候选注解是`@EnableTransactionManagement`，想一想会发生什么事情？查看该注解的源码，你会发现它里面就拥有一个`proxyTargetClass`属性，并且其默认值是`false`。所以此时压根就不会进入到if判断语句中，而只会调用我们熟悉的`AopConfigUtils`工具类的`registerAutoProxyCreatorIfNecessary`方法。
+
+这个咱们再熟悉不过的`registerAutoProxyCreatorIfNecessary`方法会向容器中注册什么呢？上面我也说到了，它会向容器中注册一个`InfrastructureAdvisorAutoProxyCreator`组件，即自动代理创建器。点进去`registerAutoProxyCreatorIfNecessary`方法中，如下图所示，可以看到这个方法又调用了一个同名的重载方法。
+
+```java
+public abstract class AopConfigUtils {
+
+	/**
+	 * The bean name of the internally managed auto-proxy creator.
+	 */
+	public static final String AUTO_PROXY_CREATOR_BEAN_NAME =
+			"org.springframework.aop.config.internalAutoProxyCreator";
+
+	/**
+	 * Stores the auto proxy creator classes in escalation order.
+	 */
+	private static final List<Class<?>> APC_PRIORITY_LIST = new ArrayList<>(3);
+
+	static {
+		// Set up the escalation list...
+		APC_PRIORITY_LIST.add(InfrastructureAdvisorAutoProxyCreator.class);
+		APC_PRIORITY_LIST.add(AspectJAwareAdvisorAutoProxyCreator.class);
+		APC_PRIORITY_LIST.add(AnnotationAwareAspectJAutoProxyCreator.class);
+	}
+
+
+	@Nullable
+	public static BeanDefinition registerAutoProxyCreatorIfNecessary(BeanDefinitionRegistry registry) {
+		return registerAutoProxyCreatorIfNecessary(registry, null);
+	}
+
+	@Nullable
+	public static BeanDefinition registerAutoProxyCreatorIfNecessary(
+			BeanDefinitionRegistry registry, @Nullable Object source) {
+
+		return registerOrEscalateApcAsRequired(InfrastructureAdvisorAutoProxyCreator.class, registry, source);
+	}
+
+	@Nullable
+	public static BeanDefinition registerAspectJAutoProxyCreatorIfNecessary(BeanDefinitionRegistry registry) {
+		return registerAspectJAutoProxyCreatorIfNecessary(registry, null);
+	}
+
+	@Nullable
+	public static BeanDefinition registerAspectJAutoProxyCreatorIfNecessary(
+			BeanDefinitionRegistry registry, @Nullable Object source) {
+
+		return registerOrEscalateApcAsRequired(AspectJAwareAdvisorAutoProxyCreator.class, registry, source);
+	}
+
+	...
+}
+```
+
+你现在该知道调用`AopConfigUtils`工具类的`registerAutoProxyCreatorIfNecessary`方法会向容器中注册什么组件了吧！
+
+现在我们可以得出这样一个结论：**导入的第一个组件（即`AutoProxyRegistrar`）向容器中注入了一个自动代理创建器，即`InfrastructureAdvisorAutoProxyCreator`。**
+
+其实，大家可以好好看一下`AopConfigUtils`工具类的源码，`AnnotationAwareAspectJAutoProxyCreator`
+
+当初咱们在研究AOP的原理时，不是得出了这样一个结论吗？**即`@EnableAspectJAutoProxy`注解会利用`AspectJAutoProxyRegistrar`向容器中注入一个`AnnotationAwareAspectJAutoProxyCreator`组件。**
+
+声明式事务的原理跟`AOP`的原理很相似，只不过对于声明式事务原理而言，它注入的是`InfrastructureAdvisorAutoProxyCreator`组件而已。我们都知道，在研究`AOP`原理时，`AnnotationAwareAspectJAutoProxyCreator`实质上是一个后置处理器，那么`InfrastructureAdvisorAutoProxyCreator`实质上又是一个什么呢？也会是一个后置处理器吗？
+
+点进去`InfrastructureAdvisorAutoProxyCreator`类里面去看一看，直到`SmartInstantiationAwareBeanPostProcessor`,看下图的继承关系
+
+![](http://120.77.237.175:9080/photos/springanno/124.jpg)
+
+说明注入的`InfrastructureAdvisorAutoProxyCreator`组件同样也是一个后置处理器。
+
+它做的事情也很简单，和之前研究AOP原理时向容器中注入的`AnnotationAwareAspectJAutoProxyCreator`组件所做的事情基本上没差别，只是利用后置处理器机制在对象创建以后进行包装，然后返回一个代理对象，并且该代理对象里面会存有所有的增强器。最后，代理对象执行目标方法，在此过程中会利用拦截器的链式机制，依次进入每一个拦截器中进行执行。
+
+### ProxyTransactionManagementConfiguration
+
+#### 向容器中注册事务增强器
+
+很快你就会发现它是一个配置类，它会利用`@Bean`注解向容器中注册各种组件，而且注册的第一个组件就是`BeanFactoryTransactionAttributeSourceAdvisor`，这个`Advisor`可是事务的核心内容，可以暂时称之为事务增强器。
+
+```java
+@Configuration(proxyBeanMethods = false)
+@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+public class ProxyTransactionManagementConfiguration extends AbstractTransactionManagementConfiguration {
+
+	@Bean(name = TransactionManagementConfigUtils.TRANSACTION_ADVISOR_BEAN_NAME)
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	public BeanFactoryTransactionAttributeSourceAdvisor transactionAdvisor(
+			TransactionAttributeSource transactionAttributeSource, TransactionInterceptor transactionInterceptor) {
+
+		BeanFactoryTransactionAttributeSourceAdvisor advisor = new BeanFactoryTransactionAttributeSourceAdvisor();
+		advisor.setTransactionAttributeSource(transactionAttributeSource);
+		advisor.setAdvice(transactionInterceptor);
+		if (this.enableTx != null) {
+			advisor.setOrder(this.enableTx.<Integer>getNumber("order"));
+		}
+		return advisor;
+	}
+
+	@Bean
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	public TransactionAttributeSource transactionAttributeSource() {
+		return new AnnotationTransactionAttributeSource();
+	}
+
+	@Bean
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	public TransactionInterceptor transactionInterceptor(TransactionAttributeSource transactionAttributeSource) {
+		TransactionInterceptor interceptor = new TransactionInterceptor();
+		interceptor.setTransactionAttributeSource(transactionAttributeSource);
+		if (this.txManager != null) {
+			interceptor.setTransactionManager(this.txManager);
+		}
+		return interceptor;
+	}
+
+}
+```
+
+总之一句话，以上配置类会利用@Bean注解向容器中注册一个事务增强器。
+
+#### 在向容器中注册事务增强器时，需要用到事务属性源
+
+那么这个所谓的事务增强器又是什么呢？从上面的配置类中可以看出，在注册事务源属性时,会把bean属性的事务源注册进来
+
+```java
+advisor.setTransactionAttributeSource(transactionAttributeSource);
+```
+
+TransactionAttributeSource`,翻译过来应该是事务属性源
+
+很快，你就会发现所需的`TransactionAttributeSource`又是容器中的一个`bean`，而且从`transactionAttributeSource`方法中可以看出，它是new出来了一个`AnnotationTransactionAttributeSource`对象。这个是重点，它是基于注解驱动的事务管理的事务属性源，和`@Transactional`注解相关，也是现在使用得最多的方式，其基本作用是遇上比如`@Transactional`注解标注的方法时，此类会分析此事务注解。
+
+然后，点进`AnnotationTransactionAttributeSource`类的无参构造方法中去看一看，发现该方法又调用了如下一个this(true)方法，即本类的另一个重载的有参构造方法。
+
+```java
+	public AnnotationTransactionAttributeSource() {
+		this(true);
+	}
+```
+
+接着，点击一下this(true)方法，这时会跳到如下的一个有参构造方法处。
+
+```java
+	public AnnotationTransactionAttributeSource(boolean publicMethodsOnly) {
+		this.publicMethodsOnly = publicMethodsOnly;
+		if (jta12Present || ejb3Present) {
+            //事务注解的解析器集合
+			this.annotationParsers = new LinkedHashSet<>(4);
+			this.annotationParsers.add(new SpringTransactionAnnotationParser());
+			if (jta12Present) {
+				this.annotationParsers.add(new JtaTransactionAnnotationParser());
+			}
+			if (ejb3Present) {
+				this.annotationParsers.add(new Ejb3TransactionAnnotationParser());
+			}
+		}
+		else {
+			this.annotationParsers = Collections.singleton(new SpringTransactionAnnotationParser());
+		}
+	}
+```
+
+在该方法中，你会看到三方法类,三个方法都继承了`TransactionAnnotationParser`接口，源码如下图所示
+
+```java
+public interface TransactionAnnotationParser {
+
+	default boolean isCandidateClass(Class<?> targetClass) {
+		return true;
+	}
+
+	@Nullable
+	TransactionAttribute parseTransactionAnnotation(AnnotatedElement element);
+
+}
+```
+
+顾名思义，它是解析方法/类上事务注解的，当然了，你也可以称它为事务注解的解析器。
+
+这里我要说明的一点是，`Spring`支持三个不同的事务注解，它们分别是：
+
+1. `Spring`事务注解，即`org.springframework.transaction.annotation.Transactional`（纯正血统，官方推荐）
+2. `JTA`事务注解，即`javax.transaction.Transactional`
+3. `EJB 3`事务注解，即`javax.ejb.TransactionAttribute`
+
+因一般都会使用`Spring`事务注解。另外，上面三个注解虽然语义上一样，但是使用方式上不完全一样
+
+上面说到了Spring支持三个不同的事务注解，这里很显然，它们都对应了三个不同的注解解析器，即`SpringTransactionAnnotationParser`、`JtaTransactionAnnotationParser`以及`Ejb3TransactionAnnotationParse`r。
+
+`SpringTransactionAnnotationParser.parseTransactionAnnotation`方法，你会发现它就是来解析`@Transactional`注解里面的每一个信息的，包括它里面的每一个属性，例如`rollbackFor`、`noRollbackFor`、···
+
+```java
+	protected TransactionAttribute parseTransactionAnnotation(AnnotationAttributes attributes) {
+		RuleBasedTransactionAttribute rbta = new RuleBasedTransactionAttribute();
+
+		Propagation propagation = attributes.getEnum("propagation");
+		rbta.setPropagationBehavior(propagation.value());
+		Isolation isolation = attributes.getEnum("isolation");
+		rbta.setIsolationLevel(isolation.value());
+		rbta.setTimeout(attributes.getNumber("timeout").intValue());
+		rbta.setReadOnly(attributes.getBoolean("readOnly"));
+		rbta.setQualifier(attributes.getString("value"));
+
+		List<RollbackRuleAttribute> rollbackRules = new ArrayList<>();
+		for (Class<?> rbRule : attributes.getClassArray("rollbackFor")) {
+			rollbackRules.add(new RollbackRuleAttribute(rbRule));
+		}
+		for (String rbRule : attributes.getStringArray("rollbackForClassName")) {
+			rollbackRules.add(new RollbackRuleAttribute(rbRule));
+		}
+		for (Class<?> rbRule : attributes.getClassArray("noRollbackFor")) {
+			rollbackRules.add(new NoRollbackRuleAttribute(rbRule));
+		}
+		for (String rbRule : attributes.getStringArray("noRollbackForClassName")) {
+			rollbackRules.add(new NoRollbackRuleAttribute(rbRule));
+		}
+		rbta.setRollbackRules(rollbackRules);
+
+		return rbta;
+	}
+```
+
+`rollbackFor`、`noRollbackFor`等等这些属性就是我们可以在`@Transactional`注解里面能写的。
+
+![](http://120.77.237.175:9080/photos/springanno/125.jpg)
+
+事务增强器要用到事务注解的信息，会使用到一个叫`AnnotationTransactionAttributeSource`的类，用它来解析事务注解。
+
+#### 在向容器中注册事务增强器时，还需要用到事务的拦截器
+
+接下来，我们再来看看向容器中注册事务增强器时，还得做些什么。回到上面`ProxyTransactionManagementConfiguration`类中，发现在向容器中注册事务增强器时，除了需要事务注解信息，还需要一个事务的拦截器，看到那个`transactionInterceptor`方法没，它就是表示事务增强器还要用到一个事务的拦截器。上面已经有提及过
+
+```java
+advisor.setAdvice(transactionInterceptor);
+```
+
+仔细查看上面的`transactionInterceptor`方法，你会看到在里面创建了一个`TransactionInterceptor`对象，创建完毕之后，不但会将事务属性源设置进去，而且还会将事务管理器（`txManager`）设置进去。也就是说，事务拦截器里面不仅保存了事务属性信息，还保存了事务管理器。
+
+我们点进去`TransactionIntercepto`r类里面去看一下，发现该类实现了一个`MethodInterceptor`接口，如下图所示
+
+```java
+public class TransactionInterceptor extends TransactionAspectSupport implements MethodInterceptor, Serializable {
+	...
+}
+```
+
+看到它，你是不是倍感亲切，因为咱们在研究AOP的原理时，就已经认识它了。相信你应该还记得这样一个知识点，**切面类里面的通知方法最终都会被整成增强器，而增强器又会被转换成`MethodInterceptor`**。所以，这样看来，这个事务拦截器实质上还是一个`MethodInterceptor`（方法拦截器）。
+
+啥叫方法拦截器呢？简单来说就是，现在会向容器中放一个代理对象，代理对象要执行目标方法，那么方法拦截器就会进行工作。
+
+其实，跟我们以前研究AOP的原理一模一样，在代理对象执行目标方法的时候，它便会来执行拦截器链，而现在这个拦截器链，只有一个`TransactionInterceptor`，它正是这个事务拦截器。接下来，我们就来看看这个事务拦截器是怎样工作的，即它的作用是什么。
+
+仔细翻阅`TransactionInterceptor`类的源码，你会发现它里面有一个`invoke`方法，而且还会看到在该方法里面又调用了一个`invokeWithinTransaction`方法，如下图所示。
+
+```java
+	@Override
+	@Nullable
+	public Object invoke(MethodInvocation invocation) throws Throwable {
+		// Work out the target class: may be {@code null}.
+		// The TransactionAttributeSource should be passed the target class
+		// as well as the method, which may be from an interface.
+		Class<?> targetClass = (invocation.getThis() != null ? AopUtils.getTargetClass(invocation.getThis()) : null);
+
+		// Adapt to TransactionAspectSupport's invokeWithinTransaction...
+		return invokeWithinTransaction(invocation.getMethod(), targetClass, invocation::proceed);
+	}
+```
+
+点进去`invokeWithinTransaction`方法里面看一下，你就能知道这个事务拦截器是怎样工作的了
+
+```java
+	protected Object invokeWithinTransaction(Method method, @Nullable Class<?> targetClass,
+			final InvocationCallback invocation) throws Throwable {
+
+		// If the transaction attribute is null, the method is non-transactional.
+		TransactionAttributeSource tas = getTransactionAttributeSource();
+		final TransactionAttribute txAttr = (tas != null ? tas.getTransactionAttribute(method, targetClass) : null);
+		final TransactionManager tm = determineTransactionManager(txAttr);
+
+		if (this.reactiveAdapterRegistry != null && tm instanceof ReactiveTransactionManager) {
+			ReactiveTransactionSupport txSupport = this.transactionSupportCache.computeIfAbsent(method, key -> {
+				if (KotlinDetector.isKotlinType(method.getDeclaringClass()) && KotlinDelegate.isSuspend(method)) {
+					throw new TransactionUsageException(
+							"Unsupported annotated transaction on suspending function detected: " + method +
+							". Use TransactionalOperator.transactional extensions instead.");
+				}
+				ReactiveAdapter adapter = this.reactiveAdapterRegistry.getAdapter(method.getReturnType());
+				if (adapter == null) {
+					throw new IllegalStateException("Cannot apply reactive transaction to non-reactive return type: " +
+							method.getReturnType());
+				}
+				return new ReactiveTransactionSupport(adapter);
+			});
+			return txSupport.invokeWithinTransaction(
+					method, targetClass, invocation, txAttr, (ReactiveTransactionManager) tm);
+		}
+
+		PlatformTransactionManager ptm = asPlatformTransactionManager(tm);
+		final String joinpointIdentification = methodIdentification(method, targetClass, txAttr);
+
+		if (txAttr == null || !(ptm instanceof CallbackPreferringPlatformTransactionManager)) {
+			// Standard transaction demarcation with getTransaction and commit/rollback calls.
+			TransactionInfo txInfo = createTransactionIfNecessary(ptm, txAttr, joinpointIdentification);
+
+			Object retVal;
+			try {
+				// This is an around advice: Invoke the next interceptor in the chain.
+				// This will normally result in a target object being invoked.
+				retVal = invocation.proceedWithInvocation();
+			}
+			catch (Throwable ex) {
+				// target invocation exception
+				completeTransactionAfterThrowing(txInfo, ex);
+				throw ex;
+			}
+			finally {
+				cleanupTransactionInfo(txInfo);
+			}
+
+			if (vavrPresent && VavrDelegate.isVavrTry(retVal)) {
+				// Set rollback-only in case of Vavr failure matching our rollback rules...
+				TransactionStatus status = txInfo.getTransactionStatus();
+				if (status != null && txAttr != null) {
+					retVal = VavrDelegate.evaluateTryFailure(retVal, txAttr, status);
+				}
+			}
+
+			commitTransactionAfterReturning(txInfo);
+			return retVal;
+		}
+
+		else {
+			final ThrowableHolder throwableHolder = new ThrowableHolder();
+
+			// It's a CallbackPreferringPlatformTransactionManager: pass a TransactionCallback in.
+			try {
+				Object result = ((CallbackPreferringPlatformTransactionManager) ptm).execute(txAttr, status -> {
+					TransactionInfo txInfo = prepareTransactionInfo(ptm, txAttr, joinpointIdentification, status);
+					try {
+						Object retVal = invocation.proceedWithInvocation();
+						if (vavrPresent && VavrDelegate.isVavrTry(retVal)) {
+							// Set rollback-only in case of Vavr failure matching our rollback rules...
+							retVal = VavrDelegate.evaluateTryFailure(retVal, txAttr, status);
+						}
+						return retVal;
+					}
+					catch (Throwable ex) {
+						if (txAttr.rollbackOn(ex)) {
+							// A RuntimeException: will lead to a rollback.
+							if (ex instanceof RuntimeException) {
+								throw (RuntimeException) ex;
+							}
+							else {
+								throw new ThrowableHolderException(ex);
+							}
+						}
+						else {
+							// A normal return value: will lead to a commit.
+							throwableHolder.throwable = ex;
+							return null;
+						}
+					}
+					finally {
+						cleanupTransactionInfo(txInfo);
+					}
+				});
+
+				// Check result state: It might indicate a Throwable to rethrow.
+				if (throwableHolder.throwable != null) {
+					throw throwableHolder.throwable;
+				}
+				return result;
+			}
+			catch (ThrowableHolderException ex) {
+				throw ex.getCause();
+			}
+			catch (TransactionSystemException ex2) {
+				if (throwableHolder.throwable != null) {
+					logger.error("Application exception overridden by commit exception", throwableHolder.throwable);
+					ex2.initApplicationException(throwableHolder.throwable);
+				}
+				throw ex2;
+			}
+			catch (Throwable ex2) {
+				if (throwableHolder.throwable != null) {
+					logger.error("Application exception overridden by commit exception", throwableHolder.throwable);
+				}
+				throw ex2;
+			}
+		}
+	}
+```
+
+**先来获取事务相关的一些属性信息**
+
+```java
+TransactionAttributeSource tas = getTransactionAttributeSource();
+final TransactionAttribute txAttr = (tas != null ? tas.getTransactionAttribute(method, targetClass) : null);
+```
+
+我们便可以知道，这儿是来获取事务相关的一些属性信息的。
+
+**再来获取PlatformTransactionManager**
+
+接着往下看`invokeWithinTransaction`方法，可以看到它的第二行代码是这样写的：
+
+```java
+final TransactionManager tm = determineTransactionManager(txAttr);
+```
+
+这就是来获取`PlatformTransactionManager`的，还记得我们之前就已经向容器中注册了一个吗，现在就是来获取它的。那到底又是怎么来获取的呢？我们不妨点进去`determineTransactionManager`方法里面去看一下。
+
+```java
+	protected TransactionManager determineTransactionManager(@Nullable TransactionAttribute txAttr) {
+		// Do not attempt to lookup tx manager if no tx attributes are set
+		if (txAttr == null || this.beanFactory == null) {
+			return getTransactionManager();
+		}
+	
+        //如果事务属性里面有Qualifier这个注解，并且这个注解还有值，那么就会直接从容器中按照这个指定的值来获取PlatformTransactionManager。
+        //其实我们在为某个业务方法标注@Transactional注解的时候，是可以明确地指定事务管理器的名字的，下图：
+        //指定事务管理器的名字，其实就等同于Qualifier这个注解。虽说是可以明确指定事务管理器的名字，但我们一般都不这么做，即不指定
+		String qualifier = txAttr.getQualifier();
+		if (StringUtils.hasText(qualifier)) {
+			return determineQualifiedTransactionManager(this.beanFactory, qualifier);
+		}
+		else if (StringUtils.hasText(this.transactionManagerBeanName)) {
+			return determineQualifiedTransactionManager(this.beanFactory, this.transactionManagerBeanName);
+		}
+		else {
+            //如果没指定的话，那么就是来获取默认的了，这时很显然会进入到最下面的else判断中
+            //可以看到，会先调用getTransactionManager方法，获取的是默认向容器中自动装配进去的PlatformTransactionManager。
+			TransactionManager defaultTransactionManager = getTransactionManager();
+			if (defaultTransactionManager == null) {
+                //首次获取肯定就为null，但没关系，因为最终会从容器中按照类型来获取，这可以从下面这行代码中看出来。
+				defaultTransactionManager = this.transactionManagerCache.get(DEFAULT_TRANSACTION_MANAGER_KEY);
+				if (defaultTransactionManager == null) {
+					defaultTransactionManager = this.beanFactory.getBean(TransactionManager.class);
+					this.transactionManagerCache.putIfAbsent(
+							DEFAULT_TRANSACTION_MANAGER_KEY, defaultTransactionManager);
+				}
+			}
+            //所以，我们只需要给容器中注入一个PlatformTransactionManager,就能获取到PlatformTransactionManager了
+			return defaultTransactionManager;
+		}
+	}
+```
+
+![](http://120.77.237.175:9080/photos/springanno/126.jpg)
+
+**总结：如果事先没有添加指定任何`TransactionManager`，那么最终会从容器中按照类型来获取一个`PlatformTransactionManager`。**
+
+**执行目标方法**
+
+接下来，继续往下看`invokeWithinTransaction`方法，来看它接下去又做了些什么。其实，很容易就能看出来，获取到事务管理器之后，然后便要来执行目标方法了，而且如果目标方法执行时一切正常，那么还能拿到一个返回值，如下图所示
+
+![](http://120.77.237.175:9080/photos/springanno/127.jpg)
+
+在执行上面这句代码之前，还有这样一句代码
+
+```java
+TransactionInfo txInfo = createTransactionIfNecessary(ptm, txAttr, joinpointIdentification);
+```
+
+上面这个方法翻译成中文，就是如果是必须的话，那么得先创建一个`Transaction`。说人话，就是如果目标方法是一个事务，那么便开启事务。
+
+如果目标方法执行时一切正常，那么接下来该怎么办呢？这时，会调用一个叫`commitTransactionAfterReturning`的方法，如上面图所示
+
+我们可以点进去`commitTransactionAfterReturning`方法里面去看一看，发现它是先获取到事务管理器，然后再利用事务管理器提交事务，如下图所示。
+
+```java
+	protected void commitTransactionAfterReturning(@Nullable TransactionInfo txInfo) {
+		if (txInfo != null && txInfo.getTransactionStatus() != null) {
+			if (logger.isTraceEnabled()) {
+				logger.trace("Completing transaction for [" + txInfo.getJoinpointIdentification() + "]");
+			}
+            //可以看到,事务是在这儿被提交的
+			txInfo.getTransactionManager().commit(txInfo.getTransactionStatus());
+		}
+	}
+```
+
+如果执行目标方法时出现异常，那么又该怎么办呢？这时，会调用一个叫`completeTransactionAfterThrowing`的方法，上图所示。
+
+点进去`completeTransactionAfterThrowing`方法里面去看一看，发现它是先获取到事务管理器，然后再利用事务管理器回滚这次操作，如下图所示。
+
+```java
+	protected void completeTransactionAfterThrowing(@Nullable TransactionInfo txInfo, Throwable ex) {
+		if (txInfo != null && txInfo.getTransactionStatus() != null) {
+			if (logger.isTraceEnabled()) {
+				logger.trace("Completing transaction for [" + txInfo.getJoinpointIdentification() +
+						"] after exception: " + ex);
+			}
+			if (txInfo.transactionAttribute != null && txInfo.transactionAttribute.rollbackOn(ex)) {
+				try {
+                    //拿到事务管理器之后进行回滚
+					txInfo.getTransactionManager().rollback(txInfo.getTransactionStatus());
+				}
+				catch (TransactionSystemException ex2) {
+					logger.error("Application exception overridden by rollback exception", ex);
+					ex2.initApplicationException(ex);
+					throw ex2;
+				}
+				catch (RuntimeException | Error ex2) {
+					logger.error("Application exception overridden by rollback exception", ex);
+					throw ex2;
+				}
+			}
+			else {
+				// We don't roll back on this exception.
+				// Will still roll back if TransactionStatus.isRollbackOnly() is true.
+				try {
+					txInfo.getTransactionManager().commit(txInfo.getTransactionStatus());
+				}
+				catch (TransactionSystemException ex2) {
+					logger.error("Application exception overridden by commit exception", ex);
+					ex2.initApplicationException(ex);
+					throw ex2;
+				}
+				catch (RuntimeException | Error ex2) {
+					logger.error("Application exception overridden by commit exception", ex);
+					throw ex2;
+				}
+			}
+		}
+	}
+```
+
+也就是说，真正的回滚与提交事务的操作都是由事务管理器来做的，而`TransactionInterceptor`只是用来拦截目标方法的。
+
+## 总结
+
+首先，使用`AutoProxyRegistrar`向`Spring`容器里面注册一个后置处理器，这个后置处理器会负责给我们包装代理对象。然后，使用`ProxyTransactionManagementConfiguration`（配置类）再向`Spring`容器里面注册一个事务增强器，此时，需要用到事务拦截器。最后，代理对象执行目标方法，在这一过程中，便会执行到当前`Spring`容器里面的拦截器链，而且每次在执行目标方法时，如果出现了异常，那么便会利用事务管理器进行回滚事务，如果执行过程中一切正常，那么则会利用事务管理器提交事务。
+
+# BeanFactoryPostProcessor的原理
+
+## BeanFactoryPostProcessor的调用时机
+
+`BeanFactoryPostProcessor`其实就是`BeanFactory`（创建bean的工厂）的后置处理器。
+
+我们点进去BeanFactoryPostProcessor的源码里面去看一看，发现它是一个接口，如下图所示。
+
+```java
+@FunctionalInterface
+public interface BeanFactoryPostProcessor {
+
+	/**
+	 * Modify the application context's internal bean factory after its standard
+	 * initialization. All bean definitions will have been loaded, but no beans
+	 * will have been instantiated yet. This allows for overriding or adding
+	 * properties even to eager-initializing beans.
+	 * @param beanFactory the bean factory used by the application context
+	 * @throws org.springframework.beans.BeansException in case of errors
+	 */
+	void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException;
+
+}
+```
+
+仔细看一下其内部`postProcessBeanFactory`方法上的描述，这很重要，因为从这段描述中我们就可以知道`BeanFactoryPostProcessor`的调用时机。描述中说，我们可以在`IOC`容器里面的`BeanFactory`的标准初始化完成之后，修改`IOC`容器里面的这个`BeanFactory`。
+
+也就是说，`BeanFactoryPostProcessor`的调用时机是在`BeanFactory`标准初始化之后，这样一来，我们就可以来定制和修改`BeanFactory`里面的一些内容了。那什么叫标准初始化呢？接着看描述，它说的是所有的bean定义已经被加载了，但是还没有bean被初始化。
+
+就是**`BeanFactoryPostProcessor`的调用时机是在`BeanFactory`标准初始化之后，这样一来，我们就可以来定制和修改`BeanFactory`里面的一些内容了，此时，所有的bean定义已经保存加载到`BeanFactory`中了，但是`bean的实例还未创建**
+
+## 测试
+
+```java
+@Component
+public class MyBeanFactoryPostProcessor implements BeanFactoryPostProcessor {
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+        System.out.println("MyBeanFactoryPostProcessor...postProcessBeanFactory()...");
+        int count = beanFactory.getBeanDefinitionCount();   //获取容器bean的数量
+        String[] names = beanFactory.getBeanDefinitionNames();  //获取所有容器bean的名
+        System.out.println("当前BeanFactory中有" + count + " 个Bean");
+        System.out.println(Arrays.asList(names));
+    }
+}
+```
+
+```java
+@ComponentScan("com.anno.ext")
+@Configuration
+public class ExtConfig {
+
+    @Bean
+    public Car car() {
+        return new Car();
+    }
+}
+```
+
+```java
+public class IOCTest_Ext {
+    @Test
+    public void test01() {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(ExtConfig.class);
+        applicationContext.close();
+    }
+}
+/**
+MyBeanFactoryPostProcessor...postProcessBeanFactory()...
+当前BeanFactory中有8 个Bean
+[org.springframework.context.annotation.internalConfigurationAnnotationProcessor, org.springframework.context.annotation.internalAutowiredAnnotationProcessor, org.springframework.context.annotation.internalCommonAnnotationProcessor, org.springframework.context.event.internalEventListenerProcessor, org.springframework.context.event.internalEventListenerFactory, extConfig, myBeanFactoryPostProcessor, car]
+car construct .....
+**/
+```
+
+从上面结果可以看到在构造器这前已经打印了`bean`的个数和`bean`容器各个名字,因此可以**确定`BeanFactoryPostProcessor`的执行时机就是在bean没实例创建之前**
+
+## 原理
+
+在`postProcessBeanFactory`打上断点,如下图,由`test01`开始分析
+
+![](http://120.77.237.175:9080/photos/springanno/128.jpg)
+
+1. 首先进入`IOCTest_Ext.test01()`方法
+
+2. 进入容器进行刷新
+
+   ![](http://120.77.237.175:9080/photos/springanno/129.jpg)
+
+3. 
