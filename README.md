@@ -1,3 +1,5 @@
+
+
 **Spirng Annotation **
 
 # Bean注入 #
@@ -5547,3 +5549,551 @@ car construct .....
    **再来从容器中找到`BeanFactoryPostProcessor`组件,然后依次触发`postProcessBeanFactory()`方法**
    
    **因此`MyBeanDefinitionRegistryPostProcessor`定义的方法优先于`BeanFactoryPostProcessor`定义的方法执行**
+
+# ApplicationListener
+
+监听容器中发布的事件。事件驱动模型开发,源码如下:
+
+```java
+@FunctionalInterface
+public interface ApplicationListener<E extends ApplicationEvent> extends EventListener {
+
+	/**
+	 * Handle an application event.
+	 * @param event the event to respond to
+	 */
+	void onApplicationEvent(E event);
+
+}
+```
+
+如果要写一个监听器，那么我们要写的监听器就得实现这个接口，而该接口中带的泛型就是我们要监听的事件。也就是说，我们应该要监听`ApplicationEvent`及其下面的子事件，因此，如果我们要发布事件，那么所发布的事件应该是`ApplicationEvent`的子类。
+
+## ApplicationListener的用法
+
+```java
+@Component
+public class MyApplicationListener implements ApplicationListener<ApplicationEvent> {
+
+    //当容器中发布此事件以后，方法触发
+    public void onApplicationEvent(ApplicationEvent event) {
+
+        System.out.println("收到的事件:" + event);
+    }
+}
+```
+
+测试一下以上监听器的功能了。试着运行`IOCTest_Ext`测试类中的`test01`方法，看能不能收到事件？
+
+```java
+public class IOCTest_Ext {
+    @Test
+    public void test01() {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(ExtConfig.class);
+        applicationContext.close();
+    }
+}
+```
+
+```java
+收到的事件:org.springframework.context.event.ContextRefreshedEvent[source=org.springframework.context.annotation.AnnotationConfigApplicationContext@f30e0a, started on Tue Feb 23 14:25:26 CST 2021]
+收到的事件:org.springframework.context.event.ContextClosedEvent[source=org.springframework.context.annotation.AnnotationConfigApplicationContext@f30e0a, started on Tue Feb 23 14:25:26 CST 2021]
+```
+
+可以看到我们收到了两个事件，这两个事件分别是`org.springframework.context.event.ContextRefreshedEvent`和`org.springframework.context.event.ContextClosedEvent`，其中第一个是容器已经刷新完成事件，第二个是容器关闭事件。而且，从下图中可以看到，这两个事件都是ApplicationEvent下面的事件。
+
+![](http://120.77.237.175:9080/photos/springanno/140.jpg)
+
+- `ContextClosedEvent` 容器关闭事件
+- `ContextRefreshedEvent` 容器刷新事件
+- `ContextStoppedEvent` 容器开始事件
+- `ContextStartedEvent` 容器停止事件
+
+只不过现在暂时还没用到容器开始和容器停止这两个事件而已。其实，想必你也已经猜到了，`IOC`容器在刷新完成之后便会发布`ContextRefreshedEvent`事件，一旦容器关闭了便会发布`ContextClosedEvent`事件。
+
+这时，你不禁要问了，我们可不可以自己发布事件呢？当然可以了，只不过此时我们应该遵循如下的步骤来进行开发。
+
+第一步，写一个监听器来监听某个事件。当然了，监听的这个事件必须是ApplicationEvent及其子类。
+
+第二步，把监听器加入到容器中，这样Spring才能知道有这样一个监听器。
+
+第三步，只要容器中有相关事件发布，那么我们就能监听到这个事件。举个例子，就拿我们上面监听的两个事件来说，你要搞清楚的一个问题是谁发布了这两个事件，猜都能猜得到，这两个事件都是由Spring发布的。
+
+- ContextRefreshedEvent：容器刷新完成事件。即容器刷新完成（此时，所有bean都已完全创建），便会发布该事件。
+- ContextClosedEvent：容器关闭事件。即容器关闭时，便会发布该事件。
+
+其实，在上面我们也看到了，Spring还默认定义了一些其他事件。除此之外，我们自己也可以编写一些自定义事件。但是，问题的关键是我们能不能自己发布事件呢？答案是可以。
+
+第四步，我们自己来发布一个事件。而发布一个事件，我们需要像下面这么来做
+
+```java
+public class IOCTest_Ext {
+    @Test
+    public void test01() {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(ExtConfig.class);
+        //发布事件；
+        applicationContext.publishEvent(new ApplicationEvent(new String("我发布的事件")) {
+        });
+        //关闭容器
+        applicationContext.close();
+    }
+}
+```
+
+```java
+收到的事件:org.springframework.context.event.ContextRefreshedEvent[source=org.springframework.context.annotation.AnnotationConfigApplicationContext@f30e0a, started on Tue Feb 23 14:42:19 CST 2021]
+收到的事件:com.anno.IOCTest_Ext$1[source=我发布的事件]
+收到的事件:org.springframework.context.event.ContextClosedEvent[source=org.springframework.context.annotation.AnnotationConfigApplicationContext@f30e0a, started on Tue Feb 23 14:42:19 CST 2021]
+```
+
+ 除了能收到容器刷新完成和容器关闭这俩事件之外，还能收到我们调用`applicationContext`发布出去的事件。只要把这个事件发布出去，那么我们自己编写的监听器就能监听到这个事件。
+
+## ApplicationListener的原理
+
+### 创建容器并且刷新
+
+在自己编写的监听器（例如`MyApplicationListener`）内的`onApplicationEvent`方法处打上一个断点
+
+![](http://120.77.237.175:9080/photos/springanno/141.jpg)
+
+首先来到了IOCTest_Ext测试类的test01方法中，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/142.jpg)
+
+可以看到第一步是要来创建`IOC`容器的。继续跟进代码，可以看到在创建容器的过程中，还会调用一个`refresh`方法来刷新容器，刷新容器其实就是创建容器里面的所有`bean`
+
+![](http://120.77.237.175:9080/photos/springanno/143.jpg)
+
+继续跟进代码，看这个`refresh`方法里面具体都做了些啥，如下图所示，可以看到它里面调用了如下一个finishRefresh方法，顾名思义，该方法就是来完成容器的刷新工作的
+
+![](http://120.77.237.175:9080/photos/springanno/144.jpg)
+
+对于这个`refresh`方法而言，想必你是再熟悉不过了，它里面做了很多的事情，也就是说，在容器刷新这一步中做了很多的事情，比如执行`BeanFactoryPostProcessor`组件的方法、给容器中注册后置处理器等等，这些之前我就已经详细讲解过了
+
+### 容器刷新完成，发布ContextRefreshedEvent事件
+
+当容器刷新完成时，就会调用`finishRefresh`方法，那么该方法里面又做了哪些事呢？我们继续跟进代码，如下图所示，发现容器刷新完成时调用的`finishRefresh`方法里面又调用了一个叫`publishEvent`的方法，而且传递进该方法的参数是`new`出来的一个`ContextRefreshedEvent`对象。这一切都在说明着，**容器在刷新完成以后，便会发布一个`ContextRefreshedEvent`事件**。
+
+![](http://120.77.237.175:9080/photos/springanno/145.jpg)
+
+接下来，我们就来看看`ContextRefreshedEvent`事件的发布流程
+
+### 事件发布流程
+
+当容器刷新完成时，就会来调用一个叫`publishEvent`的方法，而且会向该方法中传递一个`ContextRefreshedEvent`对象。这即是发布了一个事件，这个事件呢，正是我们第一个感知到的事件，即容器刷新完成事件。接下来，我们就来看看这个事件到底是怎么发布的。
+
+继续跟进代码，可以看到程序来到了如下图所示的地方
+
+![](http://120.77.237.175:9080/photos/springanno/146.jpg)
+
+继续跟进代码，可以看到程序来到了如下图所示的这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/147.jpg)
+
+```java
+//1. getApplicationEventMulticaster() 获取事件多播器
+//2. multicastEvent(applicationEvent, eventType) 向各个监听器派发事件
+getApplicationEventMulticaster().multicastEvent(applicationEvent, eventType);
+```
+
+可以看到先是调用一个`getApplicationEventMulticaster`方法，从该方法的名字中就可以看出，它是来获取事件多播器的，不过也有人叫事件派发器。接下来，我们就可以说说`ContextRefreshedEvent`事件的发布流程了。
+
+首先，调用`getApplicationEventMulticaster`方法来获取到事件多播器，或者，你叫事件派发器也行。所谓的事件多播器就是指我们要把一个事件发送给多个监听器，让它们同时感知。
+
+然后，调用事件多播器的`multicastEvent`方法，这个方法就是用来向各个监听器派发事件的。那么，它到底是怎么来派发事件的呢？
+
+继续跟进代码，来好好看看`multicastEvent`方法是怎么写的，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/148.jpg)
+
+可以看到，一开始就有一个`for`循环，在这个for循环中，有一个`getApplicationListeners`方法，它是来拿到所有的`ApplicationListener`的，拿到之后就会来挨个遍历再来拿到每一个`ApplicationListener`。
+
+很快，你会看到有一个`if`判断，它会判断`getTaskExecutor`方法能不能够返回一个`Executor`对象，如果能够，那么会利用`Executor`的异步执行功能来使用多线程的方式异步地派发事件；如果不能够，那么就使用同步的方式直接执行`ApplicationListener`的方法。
+
+可以点进去`Executor`里面去看一看，你会发现它是一个接口，并且`Spring`提供了一个叫`TaskExecutor`的子接口来继承它。在该子接口下，`Spring`又提供了一个`SyncTaskExecutor`类来实现它，以及一个`AsyncTaskExecutor`接口来继承它，
+
+![](http://120.77.237.175:9080/photos/springanno/149.jpg)
+
+`SyncTaskExecutor`支持以同步的方式来执行某一任务，`AsyncTaskExecutor`支持以异步的方式来执行某一任务。也就是说，我们可以在自定义事件派发器的时候（这个后面就会讲到），给它传递这两种类型的`TaskExecutor`，让它支持以同步或者异步的方式来派发事件。
+
+现在程序很显然是进入到了`else`判断语句中，也就是说，现在是使用同步的方式来直接执行`ApplicationListener`的方法的，相应地，这时是调用了一个叫`invokeListener`的方法，而且在该方法中传入了当前遍历出来的`ApplicationListener`。那么问题来了，这个方法的内部又做了哪些事呢？
+
+我们继续跟进代码，可以看到程序来到了如下图所示的地方。这时，`invokeListener`方法里面调用了一个叫`doInvokeListener`的方法
+
+![](http://120.77.237.175:9080/photos/springanno/150.jpg)
+
+继续跟进代码，可以看到程序来到了如下图所示的这行代码处。看到这儿，你差不多应该知道了这样一个结论，即**遍历拿到每一个`ApplicationListener`之后，会回调它的`onApplicationEvent`方法**
+
+![](http://120.77.237.175:9080/photos/springanno/151.jpg)
+
+继续跟进代码，这时，程序就会来到我们自己编写的监听器（例如`MyApplicationListener`）中，继而来回调它其中的`onApplicationEvent`方法
+
+![](http://120.77.237.175:9080/photos/springanno/152.jpg)
+
+以上就是`ContextRefreshedEvent`事件的发布流程
+
+写到这里，我来做一下总结，即总结一下一个事件怎么发布的。首先调用一个`publishEvent`方法，然后获取到事件多播器，接着为我们派发事件。你看，就是这么简单！
+
+可以知道收到的第一个事件就是`ContextRefreshedEvent`事件。为了让大家能够更加清晰地看到这一点，我按下`F6`快捷键让程序继续往下运行，如下图所示，这时控制台打印出了收到的第一个事件，即`ContextRefreshedEvent`事件。
+
+![](http://120.77.237.175:9080/photos/springanno/153.jpg)
+
+### 自定义发布的事件
+
+按下`F8`快捷键让程序运行到下一个断点，如下图所示，这时是来到了我们自己编写的监听器（例如`MyApplicationListener`）里面的onApplicationEvent`方法中
+
+这里，我们要明白一点，这儿是我们自己发布的事件，就是调用容器的`publishEvent`方法发布出去的事件，这可以从`test01`方法的如下这行代码处看出。
+
+![](http://120.77.237.175:9080/photos/springanno/155.jpg)
+
+接下来，我们就要来看一下咱们自己发布的事件的发布流程了。
+
+**其实，咱们自己发布的事件的发布流程与上面所讲述的`ContextRefreshedEvent`事件的发布流程是一模一样的**，为什么会这么说呢，这得看接下来的源码分析了。
+
+继续跟进代码，可以看到程序来到了如下图所示的地方，这不是还是再调用`publishEvent`方法吗？
+
+![](http://120.77.237.175:9080/photos/springanno/154.jpg)
+
+继续跟进代码，可以看到程序来到了如下图所示的这行代码处
+
+![](http://120.77.237.175:9080/photos/springanno/156.jpg)
+
+可以看到，还是先获取到事件多播器，然后再调用事件多播器的`multicastEvent`方法向各个监听器派发事件。
+
+继续跟进代码，可以看到`multicastEvent`方法是像下面这样写的。
+
+![](http://120.77.237.175:9080/photos/springanno/157.jpg)
+
+依然还是拿到所有的`ApplicationListener`，然后再遍历拿到每一个`ApplicationListener`，接着来挨个执行每一个`ApplicationListener`的方法。怎么来执行呢？如果是异步模式，那么就使用异步的方式来执行，否则便使用同步的方式直接执行。
+
+继续跟进代码，可以看到程序来到了如下图所示的地方。这时，`invokeListener`方法里面调用了一个叫`doInvokeListener`的方法
+
+![](http://120.77.237.175:9080/photos/springanno/158.jpg)
+
+继续跟进代码，可以看到程序来到了如下图所示的这行代码处。依旧能看到，这是遍历拿到每一个`ApplicationListener`之后，再来回调它的`onApplicationEvent`方法。
+
+![](http://120.77.237.175:9080/photos/springanno/159.jpg)
+
+以上就是咱们自己发布的事件的发布流程。
+
+**不管是容器发布的事件，还是咱们自己发布的事件，都会走以上这个事件发布流程，即先拿到事件多播器，然后再拿到所有的监听器，接着再挨个回调它的方法**。
+
+### 容器关闭，发布ContextClosedEvent事件
+
+接下来，可想而知，就应该是要轮到最后一个事件了，即容器关闭事件。我们按下`F8`快捷键让程序运行到下一个断点，如下图所示，可以看到控制台打印出了收到的第二个事件，即我们自己发布的事件。
+
+![](http://120.77.237.175:9080/photos/springanno/160.jpg)
+
+而且，从上图中也能看到，这时程序来到了我们自己编写的监听器（例如`MyApplicationListener`）里面的`onApplicationEvent`方法中。
+
+下面，我们就来看看容器关闭事件的发布流程。继续按`F8`这时程序来到了`IOCTest_Ext`测试类的`test01`方法中的最后一行代码处，如下图所示
+
+![](http://120.77.237.175:9080/photos/springanno/161.jpg)
+
+以上这行代码说的就是来关闭容器，那么容器是怎么关闭的呢？我们继续跟进代码，发现关闭容器的`close`方法里面又调用了一个`doClose`方法，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/162.jpg)
+
+继续跟进代码，如下图所示，可以看到`doClose`方法里面又调用了一个`publishEvent`方法，而且传递进该方法的参数是`new`出来的一个`ContextClosedEvent`对象。这一切都在说明着，**关闭容器，会发布一个`ContextClosedEvent`事件**
+
+![](http://120.77.237.175:9080/photos/springanno/163.jpg)
+
+当然不管怎么发布，ContextClosedEvent事件所遵循的发布流程和上面讲述的一模一样
+
+### 事件多播器
+
+**事件多播器是怎么拿到的吗？**
+
+你是不是注意到了这一点，在上面我们讲述事件发布的流程时，会通过一个`getApplicationEventMulticaster`方法来获取事件多播器，我们不妨看一下该方法是怎么写的，如下
+
+```java
+/**
+	 * Return the internal ApplicationEventMulticaster used by the context.
+	 * @return the internal ApplicationEventMulticaster (never {@code null})
+	 * @throws IllegalStateException if the context has not been initialized yet
+	 */
+	ApplicationEventMulticaster getApplicationEventMulticaster() throws IllegalStateException {
+		if (this.applicationEventMulticaster == null) {
+			throw new IllegalStateException("ApplicationEventMulticaster not initialized - " +
+					"call 'refresh' before multicasting events via the context: " + this);
+		}
+		return this.applicationEventMulticaster;
+	}
+```
+
+通过该方法可以获取到事件多播器，很显然，`applicationEventMulticaster`这么一个玩意代表的就是事件多播器。那么问题来了，我们是从哪获取到的事件多播器的呢？
+
+首先，创建`IOC`容器。我们知道，在创建容器的过程中，还会调用一个`refresh`方法来刷新容器，如下图所示
+
+```java
+	/**
+	 * Create a new AnnotationConfigApplicationContext, deriving bean definitions
+	 * from the given component classes and automatically refreshing the context.
+	 * @param componentClasses one or more component classes &mdash; for example,
+	 * {@link Configuration @Configuration} classes
+	 */
+	public AnnotationConfigApplicationContext(Class<?>... componentClasses) {
+		this();
+		register(componentClasses);
+		refresh();
+	}
+```
+
+然后，我们就要来看看这个`refresh`方法具体都做了哪些事。该方法我们已经很熟悉了，如下图所示，可以看到在该方法中会调非常多的方法，其中就有一个叫`initApplicationEventMulticaster`的方法，顾名思义，它就是来初始化`ApplicationEventMulticaster`的。而且，它还是在初始化创建其他组件之前调用的
+
+![](http://120.77.237.175:9080/photos/springanno/164.jpg)
+
+那么，初始化`ApplicationEventMulticaster`的逻辑又是怎样的呢？我们也可以来看一看，进入`initApplicationEventMulticaster`方法里面，如下。
+
+```java
+	/**
+	 * Initialize the ApplicationEventMulticaster.
+	 * Uses SimpleApplicationEventMulticaster if none defined in the context.
+	 * @see org.springframework.context.event.SimpleApplicationEventMulticaster
+	 */
+	protected void initApplicationEventMulticaster() {
+		ConfigurableListableBeanFactory beanFactory = getBeanFactory();
+		if (beanFactory.containsLocalBean(APPLICATION_EVENT_MULTICASTER_BEAN_NAME)) {
+			this.applicationEventMulticaster =
+					beanFactory.getBean(APPLICATION_EVENT_MULTICASTER_BEAN_NAME, ApplicationEventMulticaster.class);
+			if (logger.isTraceEnabled()) {
+				logger.trace("Using ApplicationEventMulticaster [" + this.applicationEventMulticaster + "]");
+			}
+		}
+		else {
+			this.applicationEventMulticaster = new SimpleApplicationEventMulticaster(beanFactory);
+			beanFactory.registerSingleton(APPLICATION_EVENT_MULTICASTER_BEAN_NAME, this.applicationEventMulticaster);
+			if (logger.isTraceEnabled()) {
+				logger.trace("No '" + APPLICATION_EVENT_MULTICASTER_BEAN_NAME + "' bean, using " +
+						"[" + this.applicationEventMulticaster.getClass().getSimpleName() + "]");
+			}
+		}
+	}
+```
+
+它就是先判断`IOC`容器（也就是`BeanFactory`）中是否有`id`等于`applicationEventMulticaster`的组件APPLICATION_EVENT_MULTICASTER_BEAN_NAME`这个常量就是字符串`applicationEventMulticaster`，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/165.jpg)
+
+如果`IOC`容器中有`id`等于`applicationEventMulticaster`的组件，那么就会通过`getBean`方法直接拿到这个组件；如果没有，那么就重新new一个`SimpleApplicationEventMulticaster`类型的事件多播器，然后再把这个事件多播器注册到容器中，也就是说，这相当于我们自己给容器中注册了一个事件多播器，这样，以后我们就可以在其他组件要派发事件的时候，自动注入这个事件多播器就行了。**其实说白了，在整个事件派发的过程中，我们可以自定义事件多播器**。
+
+以上就是我们这个事件多播器它是怎么拿到的。
+
+### 容器是怎么将容器中的监听器注册到事件多播器中
+
+还记得我们在分析事件发布流程时，有一个叫`getApplicationListeners`的方法吗？
+
+![](http://120.77.237.175:9080/photos/springanno/166.jpg)
+
+通过该方法就能知道容器中有哪些监听器。
+
+那么问题来了，容器中到底有哪些监听器呢？其实，这个问题的答案很简单，因为我们把监听器早就已经添加到了容器中，所以，容器只需要判断一下哪些组件是监听器就行了。
+
+首先，依旧还是创建`IOC`容器。我们也知道，在创建容器的过程中，还会调用一个`refresh`方法来刷新容器，如下图所示。
+
+```java
+	public AnnotationConfigApplicationContext(Class<?>... componentClasses) {
+		this();
+		register(componentClasses);
+		refresh();
+	}
+```
+
+然后，我们就要来看看这个`refresh`方法具体都做了哪些事。该方法我们已经超熟悉了，如下图所示，可以看到在该方法中会调非常多的方法，其中就有一个叫`registerListeners`的方法，顾名思义，它就是来注册监听器的
+
+![](http://120.77.237.175:9080/photos/springanno/167.jpg)
+
+那到底是怎么来注册监听器的呢？我们可以点进去该方法里面看一看，如下图所示，可以看到它是先从容器中拿到所有的监听器，然后再把它们注册到`applicationEventMulticaster`当中。
+
+```java
+	/**
+	 * Add beans that implement ApplicationListener as listeners.
+	 * Doesn't affect other listeners, which can be added without being beans.
+	 */
+	protected void registerListeners() {
+		// Register statically specified listeners first.
+		for (ApplicationListener<?> listener : getApplicationListeners()) {
+			getApplicationEventMulticaster().addApplicationListener(listener);
+		}
+
+		// Do not initialize FactoryBeans here: We need to leave all regular beans
+		// uninitialized to let post-processors apply to them!
+        //1. 从容器中获取到所有的监听器
+		String[] listenerBeanNames = getBeanNamesForType(ApplicationListener.class, true, false);
+		for (String listenerBeanName : listenerBeanNames) {
+            //2. 然后把这些监听器注册到事件派发器中
+			getApplicationEventMulticaster().addApplicationListenerBean(listenerBeanName);
+		}
+
+		// Publish early application events now that we finally have a multicaster...
+		Set<ApplicationEvent> earlyEventsToProcess = this.earlyApplicationEvents;
+		this.earlyApplicationEvents = null;
+		if (earlyEventsToProcess != null) {
+			for (ApplicationEvent earlyEvent : earlyEventsToProcess) {
+				getApplicationEventMulticaster().multicastEvent(earlyEvent);
+			}
+		}
+	}
+```
+
+当然了，第一次调用该方法时，`getApplicationListeners`方法是获取不到容器中所有的监听器的，因为这些监听器还没注册到容器中
+
+所以，第一次调用该方法时，它会调用`getBeanNamesForType`方法从容器中拿到所有`ApplicationListener`类型的组件（即监听器），然后再把这些组件注册到事件派发器中。
+
+## @EventListener注解的用法
+
+```java
+@Service
+public class UserServiceListener {
+
+    @EventListener(classes={ApplicationEvent.class})
+    public void listen(ApplicationEvent event) {
+        System.out.println("UserService...监听到的事件：" + event);
+    }
+}
+```
+
+执行发布事件的测试方法,结果如下
+
+```
+UserService...监听到的事件：org.springframework.context.event.ContextRefreshedEvent[source=org.springframework.context.annotation.AnnotationConfigApplicationContext@f30e0a, started on Wed Feb 24 16:05:51 CST 2021]
+收到的事件:org.springframework.context.event.ContextRefreshedEvent[source=org.springframework.context.annotation.AnnotationConfigApplicationContext@f30e0a, started on Wed Feb 24 16:05:51 CST 2021]
+UserService...监听到的事件：com.anno.IOCTest_Ext$1[source=我发布的事件]
+收到的事件:com.anno.IOCTest_Ext$1[source=我发布的事件]
+UserService...监听到的事件：org.springframework.context.event.ContextClosedEvent[source=org.springframework.context.annotation.AnnotationConfigApplicationContext@f30e0a, started on Wed Feb 24 16:05:51 CST 2021]
+收到的事件:org.springframework.context.event.ContextClosedEvent[source=org.springframework.context.annotation.AnnotationConfigApplicationContext@f30e0a, started on Wed Feb 24 16:05:51 CST 2021]
+```
+
+ `@EventListener`这个注解的使用会比较多，因为它使用起来非常方便。
+
+## @EventListener注解的原理
+
+可以点进去`@EventListener`这个注解里面去看一看，如下图所示
+
+![](http://120.77.237.175:9080/photos/springanno/168.jpg)
+
+描述中有一个醒目的字眼，即参考`EventListenerMethodProcessor`。意思可能是说，如果你想搞清楚`@EventListener`注解的内部工作原理，那么可以参考`EventListenerMethodProcessor`这个类。
+
+`EventListenerMethodProcessor`是啥呢？它就是一个处理器，其作用是来解析方法上的`@EventListener`注解的。这也就是说，**Spring会使用`EventListenerMethodProcessor`这个处理器来解析方法上的`@EventListener`注解**。因此，接下来，我们就要将关注点放在这个处理器上，搞清楚这个处理器是怎样工作的。搞清楚了这个，自然地我们就搞清楚了`@EventListener`注解的内部工作原理。
+
+我们点进去`EventListenerMethodProcessor`这个类里面去看一看，如下图所示，发现它实现了一个接口，叫`SmartInitializingSingleton`。这时，要想搞清楚`EventListenerMethodProcessor`这个处理器是怎样工作的，那就得先搞清楚`SmartInitializingSingleton`这个接口的原理了。
+
+![](http://120.77.237.175:9080/photos/springanno/169.jpg)
+
+不妨点进去`SmartInitializingSingleton`这个接口里面去看一看，你会发现它里面定义了一个叫`afterSingletonsInstantiated`的方法，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/170.jpg)
+
+接下来，我们就要搞清楚到底是什么时候开始触发执行`afterSingletonsInstantiated`方法的。
+
+仔细看一下`SmartInitializingSingleton`接口中`afterSingletonsInstantiated`方法上面的描述信息，不难看出该方法是在所有的单实例`bean`已经全部被创建完了以后才会被执行。
+
+其实，在介绍`SmartInitializingSingleton`接口的时候，我们也能从描述信息中知道，在所有的单实例`bean`已经全部被创建完成以后才会触发该接口。紧接着下面一段的描述还说了，该接口的调用时机有点类似于`ContextRefreshedEvent`事件，即在容器刷新完成以后，便会回调该接口。也就是说，这个时候容器已经创建完了。
+
+好吧，回到主题，我们来看看`afterSingletonsInstantiated`方法的触发时机。首先，我们得在`EventListenerMethodProcessor`类里面的`afterSingletonsInstantiated`方法处打上一个断点，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/171.jpg)
+
+后，以`debug`的方式运行`IOCTest_Ext`测试类中的`test01`方法，这时程序停留在了`EventListenerMethodProcessor`类里面的`afterSingletonsInstantiated`方法中
+
+不妨从`IOCTest_Ext`测试类中的test01方法开始，来梳理一遍整个流程。
+
+![](http://120.77.237.175:9080/photos/springanno/172.jpg)
+
+可以看到第一步是要来创建`IOC`容器的。继续跟进代码，可以看到在创建容器的过程中，还会调用一个`refresh`方法来刷新容器，刷新容器其实就是创建容器里面的所有`bean`。
+
+![](http://120.77.237.175:9080/photos/springanno/173.jpg)
+
+继续跟进代码，看这个`refresh`方法里面具体都做了些啥，如下图所示，可以看到它里面调用了如下一个`finishBeanFactoryInitialization`方法，顾名思义，该方法就是来完成`BeanFactory`的初始化工作的
+
+![](http://120.77.237.175:9080/photos/springanno/174.jpg)
+
+对于以上这个方法，我相信大家都不会陌生，因为我们之前就看过好多遍了，它其实就是来初始化所有剩下的那些单实例`bean`的。也就是说，如果还有一些单实例`bean`还没被初始化，即还没创建对象，那么便会在这一步进行（初始化）。
+
+继续跟进代码，如下图所示，可以看到在`finishBeanFactoryInitialization`方法里面执行了如下一行代码，依旧还是来初始化所有剩下的单实例 `bean`。
+
+![](http://120.77.237.175:9080/photos/springanno/175.jpg)
+
+继续跟进代码，如下图所示，可以看到现在程序停留在了如下这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/176.jpg)
+
+这不就是我们要讲的`afterSingletonsInstantiated`方法吗？它原来是在这儿调用的啊！接下来，咱们就得好好看看在调用该方法之前，具体都做了哪些事。
+
+由于`afterSingletonsInstantiated`方法位于`DefaultListableBeanFactory`类的`preInstantiateSingletons`方法里面，所以我们就得来仔细看看`preInstantiateSingletons`方法里面具体都做了些啥了。
+
+进入眼帘的首先是一个for循环，在该for循环里面，`beanNames`里面存储的都是即将要创建的所有`bean`的名字，紧接着会做一个判断，即判断`bean`是不是抽象的，是不是单实例的，等等等等。最后，不管怎样，都会调用getBean方法来创建对象。
+
+```java
+	public void preInstantiateSingletons() throws BeansException {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Pre-instantiating singletons in " + this);
+		}
+
+		// Iterate over a copy to allow for init methods which in turn register new bean definitions.
+		// While this may not be part of the regular factory bootstrap, it does otherwise work fine.
+		List<String> beanNames = new ArrayList<>(this.beanDefinitionNames);
+
+		// Trigger initialization of all non-lazy singleton beans...
+        //循环获取所有的bean
+		for (String beanName : beanNames) {
+			RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
+			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
+				if (isFactoryBean(beanName)) {
+					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
+					if (bean instanceof FactoryBean) {
+						final FactoryBean<?> factory = (FactoryBean<?>) bean;
+						boolean isEagerInit;
+						if (System.getSecurityManager() != null && factory instanceof SmartFactoryBean) {
+							isEagerInit = AccessController.doPrivileged((PrivilegedAction<Boolean>)
+											((SmartFactoryBean<?>) factory)::isEagerInit,
+									getAccessControlContext());
+						}
+						else {
+							isEagerInit = (factory instanceof SmartFactoryBean &&
+									((SmartFactoryBean<?>) factory).isEagerInit());
+						}
+						if (isEagerInit) {
+							getBean(beanName);
+						}
+					}
+				}
+				else {
+					getBean(beanName);
+				}
+			}
+		}
+
+		// Trigger post-initialization callback for all applicable beans...
+		for (String beanName : beanNames) {
+			Object singletonInstance = getSingleton(beanName);
+            //判断是否继承了SmartInitializingSingleton
+			if (singletonInstance instanceof SmartInitializingSingleton) {
+				final SmartInitializingSingleton smartSingleton = (SmartInitializingSingleton) singletonInstance;
+				if (System.getSecurityManager() != null) {
+					AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
+                        	//调用afterSingletonsInstantiated()方法
+						smartSingleton.afterSingletonsInstantiated();
+						return null;
+					}, getAccessControlContext());
+				}
+				else {
+                    	//调用afterSingletonsInstantiated()方法
+					smartSingleton.afterSingletonsInstantiated();
+				}
+			}
+		}
+	}
+```
+
+总结一下就是，**先利用一个`for`循环拿到所有我们要创建的单实例bean，然后挨个调用`getBean`方法来创建对象。也即，创建所有的单实例bean。**
+
+再来往下翻阅`preInstantiateSingletons`方法，发现它下面还有一个`for`循环，在该`for`循环里面，`beanNames`里面依旧存储的是即将要创建的所有`bean`的名字。那么，在该for循环中所做的事情又是什么呢？很显然，在最上面的那个for循环中，所有的单实例`bean`都已经全部创建完了。因此，在下面这个for循环中，咱们所要做的事就是**获取所有创建好的单实例`bean`，然后判断每一个`bean`对象是否是`SmartInitializingSingleton`这个接口类型的，如果是，那么便调用它里面的`afterSingletonsInstantiated`方法，而该方法就是`SmartInitializingSingleton`接口中定义的方法。**
+
+至此，`afterSingletonsInstantiated`就是在**所有单实例bean全部创建完成以后执行的**。
+
+如果所有的单实例bean都已经创建完了，也就是说下面这一步都执行完了，那么说明IOC容器已经创建完成
+
+![](http://120.77.237.175:9080/photos/springanno/177.jpg)
+
+那么，紧接着便会来调用`finishRefresh`方法，容器已经创建完了，此时就会来发布容器已经刷新完成的事件。这就呼应了开头的那句话，即`SmartInitializingSingleton`接口的调用时机有点类似于`ContextRefreshedEvent`事件，即在容器刷新完成以后，便会回调该接口
