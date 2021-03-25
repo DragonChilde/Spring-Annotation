@@ -6118,3 +6118,172 @@ public class IOCTest_Ext {
 }
 ```
 
+我们知道如下这样一行代码是来new一个IOC容器的，而且还可以看到传入了一个配置类。
+
+```java
+AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(ExtConfig.class);
+```
+
+点进去`AnnotationConfigApplicationContext`类的有参构造方法里面去看一看，如下图所示，相信大家对该有参构造方法是再熟悉不过了。
+
+```java
+	public AnnotationConfigApplicationContext(Class<?>... componentClasses) {
+		this();						//前面这些都是做一些预处理以及解析工作,由于现在是来分析
+		register(componentClasses);		//Spring容器的创建以及初始化过程,所以略过
+		refresh();
+	}
+```
+
+由于我们现在是来分析Spring容器的创建以及初始化过程，所以我们将核心的关注点放在`refresh`方法上，也即刷新容器。该方法运行完以后，容器就创建完成了，包括所有的`bean`对象也都创建和初始化完成了。
+
+接下来，我们在刷新容器的`refresh`方法上打上一个断点，重点分析一下刷新容器这个方法里面到底做了些什么事
+![](http://120.77.237.175:9080/photos/springanno/178.jpg)
+
+我们以`debug`的方式运行`IOCTest_Ext`测试类中的`test01`方法，如下图所示，程序现在停到了标注断点的refresh方法处。
+
+![](http://120.77.237.175:9080/photos/springanno/179.jpg)
+
+按下`F5`快捷键进入`refresh`方法里面，如下图所示，可以看到映入眼帘的是一个线程安全的锁机制，除此之外，你还能看到第一个方法，即prepareRefresh方法，顾名思义，它是来执行刷新容器前的预处理工作的
+
+![](http://120.77.237.175:9080/photos/springanno/180.jpg)
+
+那么问题来了，刷新容器前的这个预处理工作它到底都做了哪些事呢？下面我们就来详细说说。
+
+### prepareRefresh()：刷新容器前的预处理工作
+
+按下`F6`快捷键让程序往下运行，运行到`prepareRefresh`方法处时，按下`F5`快捷键进入该方法里面，如下图所示，可以看到会先清理一些缓存，我们的关注点不在这儿，所以略过。
+
+继续按下`F6`快捷键让程序往下运行，运行到`super.prepareRefresh()`这行代码处，这儿也是来执行刷新容器前的预处理工作的。按下`F5`快捷键进入该方法里面，如下图所示，我们可以看到它里面都做了些什么预处理工作。
+
+![](http://120.77.237.175:9080/photos/springanno/181.jpg)
+
+发现就是先记录下当前时间，然后设置下当前容器是否是关闭、是否是活跃的等状态，除此之外，还会打印当前容器的刷新日志。如果你要是不信的话，那么可以按下F6快捷键让程序往下运行，直至运行到`initPropertySources`方法处，你便能看到控制台打印出了一些当前容器的刷新日志
+
+这时，我们看到了第一个方法，即initPropertySources方法。那么，它里面做了些啥事呢？
+
+#### initPropertySources()：子类自定义个性化的属性设置的方法
+
+顾名思义，该方法是来初始化一些属性设置的。那么，该方法里面究竟做了些啥事呢？我们不妨进去一探究竟，按下`F5`快捷键进入该方法中，如下图所示，发现它是空的，没有做任何事情。
+
+```java
+	protected void initPropertySources() {
+		// For subclasses: do nothing by default.
+	}
+```
+
+但是，我们要注意该方法是`protected`类型的，这意味着它是留给子类自定义个性化的属性设置的。例如，我们可以自己来写一个`AnnotationConfigApplicationContext`的子类，在容器刷新的时候，重写这个方法，这样，我们就可以在子类（也叫子容器）的该方法中自定义一些个性化的属性设置了。
+
+这个方法只有在子类自定义的时候有用，只不过现在它还是空的，里面啥也没做。
+
+#### getEnvironment().validateRequiredProperties()：获取其环境变量，然后校验属性的合法性
+
+继续按下`F6`快捷键让程序往下运行，直至运行到以下这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/182.jpg)
+
+这行代码的意思很容易知道，前面不是自定义了一些个性化的属性吗？这儿就是来校验这些属性的合法性的。
+
+那么是怎么来进行属性校验的呢？首先是要来获取其环境变量，你可以按下`F5`快捷键进入getEnvironment方法中去看看，如下图所示，可以看到该方法就是用来获取其环境变量的。
+
+```java
+	@Override
+	public ConfigurableEnvironment getEnvironment() {
+		if (this.environment == null) {
+			this.environment = createEnvironment();
+		}
+		return this.environment;
+	}
+```
+
+继续按下F6快捷键让程序往下运行，让程序再次运行到`getEnvironment().validateRequiredProperties()`这行代码处。然后，再次按下F5快捷键进入`validateRequiredProperties`方法中去看看，如下图所示，可以看到就是使用属性解析器来进行属性校验的。
+
+```java
+    public void validateRequiredProperties() throws MissingRequiredPropertiesException {
+    	//使用属性解析器来进行属性校验
+        this.propertyResolver.validateRequiredProperties();
+    }
+```
+
+只不过，我们现在没有自定义什么属性，所以，此时并没有做任何属性校验工作。
+
+#### 保存容器中早期的事件
+
+继续按下`F6`快捷键让程序往下运行，直至运行到以下这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/183.jpg)
+
+这儿是`new`了一个`LinkedHashSet`，它主要是来临时保存一些容器中早期的事件的。如果有事件发生，那么就存放在这个`LinkedHashSet`里面，这样，当事件派发器好了以后，直接用事件派发器把这些事件都派发出去。
+
+总结一下就是一句话，即允许收集早期的容器事件，等待事件派发器可用之后，即可进行发布。
+
+至此，我们就分析完了`prepareRefresh`方法，以上就是该方法所做的事情。我们发现这个方法和`BeanFactory`并没有太大关系，因此，接下来我们还得来看下一个方法，即`obtainFreshBeanFactory`方法。
+
+### obtainFreshBeanFactory()：获取BeanFactory对象
+
+继续按下`F6`快捷键让程序往下运行，直至运行至以下这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/184.jpg)
+
+可以看到一个叫`obtainFreshBeanFactory`的方法，顾名思义，它是来获取`BeanFactory`的实例的。接下来，我们就来看看该方法里面究竟做了哪些事。
+
+#### refreshBeanFactory()：创建BeanFactory对象，并为其设置一个序列化id
+
+按下`F5`快捷键进入该方法中，如下图所示，可以看到其获取`BeanFactory`实例的过程是下面这样子的。
+
+```java
+	protected ConfigurableListableBeanFactory obtainFreshBeanFactory() {
+		refreshBeanFactory();
+		return getBeanFactory();
+	}
+```
+
+发现首先调用了一个叫`refreshBeanFactory`的方法，该方法见名思义，应该是来刷新`BeanFactory`的。那么，该方法里面又做了哪些事呢？
+
+我们可以按下`F5`快捷键进入该方法中去看看，如下图所示，发现程序来到了`GenericApplicationContext`类里面。
+
+![](http://120.77.237.175:9080/photos/springanno/185.jpg)
+
+而且，我们还可以看到在以上`refreshBeanFactory`方法中，会先判断是不是重复刷新了。于是，我们继续按下`F6`快捷键让程序往下运行，发现程序并没有进入到if判断语句中，而是来到了下面这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/186.jpg)
+
+程序运行到这里，你会不会有一个大大的疑问，那就是我们的`beanFactory`不是还没创建么，怎么在这儿又开始调用方法了呢，难道是已经创建了吗？
+
+我们向上翻阅`GenericApplicationContext`类的代码，发现原来是在这个类的无参构造方法里面，就已经实例化了`beanFactory`这个对象。也就是说，在创建GenericApplicationContext`对象时，无参构造器里面就`new`出来了`beanFactory`这个对象。
+![](http://120.77.237.175:9080/photos/springanno/187.jpg)
+
+相当于我们做了非常核心的一步，即创建了一个`beanFactory`对象，而且该对象还是`DefaultListableBeanFactory`类型的。
+
+现在，我们已经知道了在`GenericApplicationContext`这个类的无参构造方法里面，就已经实例化了`beanFactory`这个对象。那么，你可能会有疑问，究竟是在什么地方调用`GenericApplicationContext`类的无参构造方法的呢？
+
+这时，我们可以去看一下我们的单元测试类（例如IOCTest_Ext），如下图所示
+![](http://120.77.237.175:9080/photos/springanno/188.jpg)
+
+只要点进去`AnnotationConfigApplicationContext`类里面去看一看，你就知道大概了，如下图所示，原来`AnnotationConfigApplicationContext`类继承了`GenericApplicationContext`这个类，所以，当我们实例化`AnnotationConfigApplicationContext`时就会调用其父类的构造方法，相应地这时就会对我们的`BeanFactory`进行实例化了。
+
+![](http://120.77.237.175:9080/photos/springanno/189.jpg)
+
+`BeanFactory`对象创建好了之后，接下来就是要给其设置一个序列化`id`，相当于打了一个`id`标识。我们不妨`Inspect`一下`getId`方法的值，发现它是`org.springframework.context.annotation.AnnotationConfigApplicationContext@1f23557`这么一长串的字符串，原来这个序列化id就是它啊！
+
+![](http://120.77.237.175:9080/photos/springanno/190.jpg)
+
+按下`F6`快捷键让程序往下运行，直至程序运行到下面这行代码处，`refreshBeanFactory`方法就执行完了。
+
+该方法所做的事情很简单，无非就是**创建了一个`BeanFactory`对象（`DefaultListableBeanFactory`类型的），并为其设置好了一个序列化`id`**。
+
+#### getBeanFactory()：返回设置了序列化id后的BeanFactory对象
+
+接下来，我们就要看看`getBeanFactory`方法了。按下`F5`快捷键进入该方法里面，如下图所示，发现它里面就只是做了一件事，即返回设置了序列化id后的`BeanFactory`对象。
+
+```java
+	@Override
+	public final ConfigurableListableBeanFactory getBeanFactory() {
+		return this.beanFactory;	//返回设置了序列化id后的BeanFactory对象
+	}
+```
+
+继续按下`F6`快捷键让程序往下运行，一直让程序运行到下面这行代码处。程序运行至此，就返回了我们刚刚创建好的那个BeanFactory对象，只不过这个BeanFactory对象，由于我们刚创建，所以它里面的什么东西都是默认的一些设置。
+
+![](http://120.77.237.175:9080/photos/springanno/191.jpg)
+
+至此，我们就分析完了`obtainFreshBeanFactory`方法，以上就是该方法所做的事情，即获取BeanFactory对象
