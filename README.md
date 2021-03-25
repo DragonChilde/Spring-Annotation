@@ -6097,3 +6097,24 @@ UserService...监听到的事件：org.springframework.context.event.ContextClos
 ![](http://120.77.237.175:9080/photos/springanno/177.jpg)
 
 那么，紧接着便会来调用`finishRefresh`方法，容器已经创建完了，此时就会来发布容器已经刷新完成的事件。这就呼应了开头的那句话，即`SmartInitializingSingleton`接口的调用时机有点类似于`ContextRefreshedEvent`事件，即在容器刷新完成以后，便会回调该接口
+
+# Spring IOC容器创建源码解析
+
+## BeanFactory的创建以及预准备工作
+
+先来看一下如下的一个单元测试类（例如IOCTest_Ext）
+
+```java
+public class IOCTest_Ext {
+    @Test
+    public void test01() {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(ExtConfig.class);
+        //发布事件；
+        applicationContext.publishEvent(new ApplicationEvent(new String("我发布的事件")) {
+        });
+        //关闭容器
+        applicationContext.close();
+    }
+}
+```
+
