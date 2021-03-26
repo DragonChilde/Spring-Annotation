@@ -6287,3 +6287,132 @@ AnnotationConfigApplicationContext applicationContext = new AnnotationConfigAppl
 ![](http://120.77.237.175:9080/photos/springanno/191.jpg)
 
 至此，我们就分析完了`obtainFreshBeanFactory`方法，以上就是该方法所做的事情，即获取BeanFactory对象
+
+#### prepareBeanFactory(beanFactory)：BeanFactory的预准备工作，即对BeanFactory进性一些预处理
+
+接下来，我们就得来说说`prepareBeanFactory`方法了。顾名思义，该方法就是对`BeanFactory`做一些预处理，即`BeanFactory`的预准备工作。
+
+为什么要在这儿对`BeanFactory`做一些预处理啊？因为我们前面刚刚创建好的`BeanFactory`还没有做任何设置呢，所以就得在这儿对`BeanFactory`做一些设置了。
+
+按下F5快捷键进入该方法中，如下图所示，我们发现会对`BeanFactory`进行一系列的赋值（即设置一些属性）。比方说，设置`BeanFactory`的类加载器，就得像下面这样。
+
+```java
+	protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
+		// Tell the internal bean factory to use the context's class loader etc.
+		beanFactory.setBeanClassLoader(getClassLoader());	//设置BeanFactory的类加载器
+        //设置支持相关表达式语言的解析器
+		beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
+        //添加属性的编辑注册器
+		beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
+
+		// Configure the bean factory with context callbacks.
+        //发现还向BeanFactory中添加了一个BeanPostProcessor，即ApplicationContextAwareProcessor。
+        //温馨提示：这儿只是向BeanFactory中添加了部分的BeanPostProcessor，而不是添加所有的，比如我们现在只是向BeanFactory中添加了一个叫ApplicationContextAwareProcessor的BeanPostProcessor。它的作用，我们之前也看过了，就是在bean初始化以后来判断这个bean是不是实现了ApplicationContextAware接口。
+		beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
+        //可以看到现在是来为BeanFactory设置忽略的自动装配的接口，比如说像EnvironmentAware、EmbeddedValueResolverAware等等这些接口。
+        //那么，设置忽略的自动装配的这些接口有什么作用呢？作用就是，这些接口的实现类不能通过接口类型来自动注入。
+		beanFactory.ignoreDependencyInterface(EnvironmentAware.class);
+		beanFactory.ignoreDependencyInterface(EmbeddedValueResolverAware.class);
+		beanFactory.ignoreDependencyInterface(ResourceLoaderAware.class);
+		beanFactory.ignoreDependencyInterface(ApplicationEventPublisherAware.class);
+		beanFactory.ignoreDependencyInterface(MessageSourceAware.class);
+		beanFactory.ignoreDependencyInterface(ApplicationContextAware.class);
+
+		// BeanFactory interface not registered as resolvable type in a plain factory.
+		// MessageSource registered (and found for autowiring) as a bean.
+        //可以看到现在是来为BeanFactory注册可以解析的自动装配。
+        //所谓的可以解析的自动装配，就是说，我们可以直接在任何组件里面自动注入像BeanFactory、ResourceLoader、ApplicationEventPublisher（它就是上一讲我们讲述的事件派发器）以及ApplicationContext（也就是我们的IOC容器）这些东西。
+		beanFactory.registerResolvableDependency(BeanFactory.class, beanFactory);
+		beanFactory.registerResolvableDependency(ResourceLoader.class, this);
+		beanFactory.registerResolvableDependency(ApplicationEventPublisher.class, this);
+		beanFactory.registerResolvableDependency(ApplicationContext.class, this);
+
+		// Register early post-processor for detecting inner beans as ApplicationListeners.
+        //可以看到现在又向BeanFactory中添加了一个BeanPostProcessor，只不过现在添加的是一个叫ApplicationListenerDetector的BeanPostProcessor。
+        //也就是说，会向BeanFactory中添加很多的后置处理器，后置处理器的作用就是在bean初始化前后做一些工作。
+		beanFactory.addBeanPostProcessor(new ApplicationListenerDetector(this));
+
+		// Detect a LoadTimeWeaver and prepare for weaving, if found.
+        //继续向下看prepareBeanFactory方法，可以看到有一个if判断语句，它这是向BeanFactory中添加编译时与AspectJ支持相关的东西。
+        //这里的if判断是添加编译时与AspectJ支持相关的东西
+		if (beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
+			beanFactory.addBeanPostProcessor(new LoadTimeWeaverAwareProcessor(beanFactory));
+			// Set a temporary ClassLoader for type matching.
+			beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
+		}
+
+        //而我们现在默认的这些都是运行时的动态代理，所以你会看到这样一个现象，按下F6快捷键让程序往下运行，程序并不会进入到以上if判断语句中，而是来到了下面这个if判断语句处。
+        
+		// Register default environment beans.
+        //这儿是在向BeanFactory中注册一些与环境变量相关的bean，比如注册了一个名字是environment，值是当前环境对象（其类型是ConfigurableEnvironment）的bean。
+		if (!beanFactory.containsLocalBean(ENVIRONMENT_BEAN_NAME)) {
+            //注册当前的环境对象
+			beanFactory.registerSingleton(ENVIRONMENT_BEAN_NAME, getEnvironment());
+		}
+        //除此之外，还注册了一个名字为systemProperties的bean，也即系统属性，它是通过当前环境对象的getSystemProperties方法获得的。我们来看一下系统属性是个什么东西，进入getSystemProperties方法里面，如下图所示，可以看到系统属性就是一个Map<String, Object>，该Map里面的key/value就是环境变量里面的key/value。
+		if (!beanFactory.containsLocalBean(SYSTEM_PROPERTIES_BEAN_NAME)) {
+			beanFactory.registerSingleton(SYSTEM_PROPERTIES_BEAN_NAME, getEnvironment().getSystemProperties());
+		}
+        //最后，还会注册一个名字为systemEnvironment的bean，即系统的整个环境信息。我们也不妨点进去getSystemEnvironment方法里面去看一下，如下图所示，发现系统的整个环境信息也是一个Map<String, Object>。
+		if (!beanFactory.containsLocalBean(SYSTEM_ENVIRONMENT_BEAN_NAME)) {
+			beanFactory.registerSingleton(SYSTEM_ENVIRONMENT_BEAN_NAME, getEnvironment().getSystemEnvironment());
+		}
+	}
+```
+
+```java
+    public Map<String, Object> getSystemProperties() {
+        try {
+            return System.getProperties();
+        } catch (AccessControlException var2) {
+            return new ReadOnlySystemAttributesMap() {
+                @Nullable
+                protected String getSystemAttribute(String attributeName) {
+                    try {
+                        return System.getProperty(attributeName);
+                    } catch (AccessControlException var3) {
+                        if (AbstractEnvironment.this.logger.isInfoEnabled()) {
+                            AbstractEnvironment.this.logger.info("Caught AccessControlException when accessing system property '" + attributeName + "'; its value will be returned [null]. Reason: " + var3.getMessage());
+                        }
+
+                        return null;
+                    }
+                }
+            };
+        }
+    }
+```
+
+```java
+    public Map<String, Object> getSystemEnvironment() {
+        if (this.suppressGetenvAccess()) {
+            return Collections.emptyMap();
+        } else {
+            try {
+                return System.getenv();
+            } catch (AccessControlException var2) {
+                return new ReadOnlySystemAttributesMap() {
+                    @Nullable
+                    protected String getSystemAttribute(String attributeName) {
+                        try {
+                            return System.getenv(attributeName);
+                        } catch (AccessControlException var3) {
+                            if (AbstractEnvironment.this.logger.isInfoEnabled()) {
+                                AbstractEnvironment.this.logger.info("Caught AccessControlException when accessing system environment variable '" + attributeName + "'; its value will be returned [null]. Reason: " + var3.getMessage());
+                            }
+
+                            return null;
+                        }
+                    }
+                };
+            }
+        }
+    }
+```
+
+也就是说，我们向`BeanFactory`中注册了以上三个与环境变量相关的`bean`。以后，如果我们想用的话，只须将它们自动注入即可。
+
+继续按下F6快捷键让程序往下运行，一直让程序运行到下面这行代码处。程序运行至此，说明`prepareBeanFactory`方法就执行完了，相应地，`BeanFactory`就已经创建好了，里面该设置的属性也都设置了。
+![](http://120.77.237.175:9080/photos/springanno/192.png)
+
+#### postProcessBeanFactory(beanFactory)：BeanFactory准备工作完成后进行的后置处理工作
