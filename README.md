@@ -6218,7 +6218,7 @@ AnnotationConfigApplicationContext applicationContext = new AnnotationConfigAppl
 
 至此，我们就分析完了`prepareRefresh`方法，以上就是该方法所做的事情。我们发现这个方法和`BeanFactory`并没有太大关系，因此，接下来我们还得来看下一个方法，即`obtainFreshBeanFactory`方法。
 
-### obtainFreshBeanFactory()：获取BeanFactory对象
+#### obtainFreshBeanFactory()：获取BeanFactory对象
 
 继续按下`F6`快捷键让程序往下运行，直至运行至以下这行代码处。
 
@@ -6416,3 +6416,108 @@ AnnotationConfigApplicationContext applicationContext = new AnnotationConfigAppl
 ![](http://120.77.237.175:9080/photos/springanno/192.png)
 
 #### postProcessBeanFactory(beanFactory)：BeanFactory准备工作完成后进行的后置处理工作
+
+接下来，就得来说说`postProcessBeanFactory`方法了。它说的就是在`BeanFactory`准备工作完成之后进行的后置处理工作。我们不妨点进去该方法里面看看，它究竟做了哪些事，如下图所示，发现它里面是空的。
+
+```java
+	protected void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
+	}
+```
+
+这不是和我们刷新容器前的预处理工作中的`initPropertySources`方法一样吗？方法里面都是空的，默认都是不进行任何处理的，但是方法都是`protected`类型的，这也就是说子类可以通过重写这个方法，在`BeanFactory`创建并预处理完成以后做进一步的设置。
+
+这个方法只有在子类重写的时候有用，只不过现在它还是空的，里面啥也没做。
+
+继续按下F6快捷键让程序往下运行，一直让程序运行到下面这行代码处。程序运行到这里之后，我们先让它停一停。
+
+![](http://120.77.237.175:9080/photos/springanno/193.jpg)
+
+至此，`BeanFactory`的创建以及预准备工作就已经完成啦
+
+既然有了`BeanFactory`对象，那么接下来我们就要利用`BeanFactory`来创建各种组件了。
+
+## 执行BeanFactoryPostProcessor
+
+接着上面,当执行到可以看到上图,执行一个叫invokeBeanFactoryPostProcessors的方法，这个方法我们之前也看过，它就是来执行BeanFactoryPostProcessor的,它就是BeanFactory的后置处理器。那么，它是什么时候来执行的呢？我们不妨看一下它的源码，如下图所示。
+
+```java
+@FunctionalInterface
+public interface BeanFactoryPostProcessor {
+
+	/**
+	 * Modify the application context's internal bean factory after its standard
+	 * initialization. All bean definitions will have been loaded, but no beans
+	 * will have been instantiated yet. This allows for overriding or adding
+	 * properties even to eager-initializing beans.
+	 * @param beanFactory the bean factory used by the application context
+	 * @throws org.springframework.beans.BeansException in case of errors
+	 */
+    //以上描述说:BeanFactoryPostProcessor的方法是在BeanFactory标准初始化之后执行的.而BeanFactory标准初始化就是我们上一讲所阐述的内容
+	void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException;
+
+}
+```
+
+BeanFactoryPostProcessor接口的继承树，如下图所示。
+![](http://120.77.237.175:9080/photos/springanno/194.jpg)
+
+可以看到，`BeanFactoryPostProcessor`接口下还有一个子接口，即`BeanDefinitionRegistryPostProcessor`。以前，我们还用过BeanDefinitionRegistryPostProcessor`这个接口给IOC容器中额外添加过组件
+
+接下来，我们就来看看`invokeBeanFactoryPostProcessors`这个方法里面到底做了哪些事，也就是看一下`BeanFactoryPostProcessor`的整个执行过程。
+
+### BeanFactoryPostProcessor的执行过程
+
+在invokeBeanFactoryPostProcessors`方法里面主要就是执行了`BeanDefinitionRegistryPostProcessor`的`postProcessBeanDefinitionRegistry`和`postProcessBeanFactory`这俩方法，以及`BeanFactoryPostProcessors`的`postProcessBeanFactory`方法
+
+#### 先执行BeanDefinitionRegistryPostProcessor的方法
+
+我们可以按下`F5`快捷键进入`invokeBeanFactoryPostProcessors`方法里面去瞧一瞧，如下图所示，可以看到现在程序来到了如下这行代码处。
+
+```java
+	protected void invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory) {
+		PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors());
+
+		// Detect a LoadTimeWeaver and prepare for weaving, if found in the meantime
+		// (e.g. through an @Bean method registered by ConfigurationClassPostProcessor)
+		if (beanFactory.getTempClassLoader() == null && beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
+			beanFactory.addBeanPostProcessor(new LoadTimeWeaverAwareProcessor(beanFactory));
+			beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
+		}
+	}
+```
+
+以上这个`invokeBeanFactoryPostProcessors`方法，看名字就知道了，同样是来执行`BeanFactoryPostProcessor`的方法的，那怎么来执行呢？我们可以按下F5快捷键来跟踪源码看看，此时你会发现进入到了`getBeanFactoryPostProcessors`方法中，如下图所示，该方法仅仅只是返回了一个空的`List<BeanFactoryPostProcessor>`集合，该集合是用于存放所有的`BeanFactoryPostProcessor`的，只不过它现在默认是空的而已，也就是说该集合里面还没存储任何`BeanFactoryPostProcessor`。
+
+![](http://120.77.237.175:9080/photos/springanno/195.jpg)
+
+不过，可以通过以下`addBeanFactoryPostProcessor`方法向该集合中添加`BeanFactoryPostProcessor`。
+
+![](http://120.77.237.175:9080/photos/springanno/196.jpg)
+
+返回到调用层，然后按下`F5`快捷键进入`invokeBeanFactoryPostProcessors`方法里面去一探究竟，如下图所示
+
+![](http://120.77.237.175:9080/photos/springanno/197.jpg)
+
+其中，一开始的注释就告诉了我们，无论什么时候都会先调用实现了`BeanDefinitionRegistryPostProcessor`接口的类。
+
+一定要注意哟！紧接着会先来判断我们这个`beanFactory`是不是`BeanDefinitionRegistry`。之前我们在上一讲中就已经说过了，生成的`BeanFactory`对象是`DefaultListableBeanFactory`类型的，而且还使用了`ConfigurableListableBeanFactory`接口进行接收。这里我们就来看下`DefaultListableBeanFactory`类是不是实现了`BeanDefinitionRegistry`接口，看下图，很显然是实现了。
+
+![](http://120.77.237.175:9080/photos/springanno/198.jpg)
+
+自然地，程序就会进入到if判断语句中，进来以后呢，我们来大致地分析一下下面的流程。首先，映入眼帘的是一个for循环，它是来循环遍历`invokeBeanFactoryPostProcessors`方法中的第二个参数的，即`beanFactoryPostProcessors`。其实呢，就是拿到所有的`BeanFactoryPostProcessor`，再挨个遍历出来。然后，再来以遍历出来的每一个`BeanFactoryPostProcessor`是否实现了`BeanDefinitionRegistryPostProcessor`接口为依据将其分别存放于以下两个箭头所指向的`LinkedList`中，其中实现了`BeanDefinitionRegistryPostProcessor`接口的还会被直接调用。
+
+![](http://120.77.237.175:9080/photos/springanno/199.jpg)
+
+##### 根据优先级，分别执行BeanDefinitionRegistryPostProcessor的postProcessBeanDefinitionRegistry方法
+
+继续按下`F6`快捷键让程序往下运行，直至运行到下面这行代码处，可以看到现在是会拿到所有`BeanDefinitionRegistryPostProcessor`的这些`bean`的名字。
+
+![](http://120.77.237.175:9080/photos/springanno/200.jpg)
+
+有意思的是，会发现每次执行前，都会运行完这么一行代码：
+
+```java
+beanFactory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class, true, false);
+```
+
+这行代码的意思，就是来获取容器中所有实现了`BeanDefinitionRegistryPostProcessor`接口的组件。**那么，为什么每次执行前，都会运行这样一行代码呢？这是因为每次执行可能会加载进来新的`BeanDefinition`，所以每次都要重新获取。**
