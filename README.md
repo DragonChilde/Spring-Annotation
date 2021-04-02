@@ -6521,3 +6521,82 @@ beanFactory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class, true,
 ```
 
 这行代码的意思，就是来获取容器中所有实现了`BeanDefinitionRegistryPostProcessor`接口的组件。**那么，为什么每次执行前，都会运行这样一行代码呢？这是因为每次执行可能会加载进来新的`BeanDefinition`，所以每次都要重新获取。**
+
+
+
+
+
+
+
+###### 执行实现了Ordered顺序接口的BeanDefinitionRegistryPostProcessor的postProcessBeanDefinitionRegistry方法
+
+继续按下F6快捷键让程序往下运行，直至运行到下面这行代码处，可以看到在每次执行前都会执行下面一行代码，这是因为每次执行可能会加载进来新的`BeanDefinition`，所以每次都要重新获取所有实现了`BeanDefinitionRegistryPostProcessor`接口的组件
+![](http://120.77.237.175:9080/photos/springanno/203.jpg)
+
+很明显，这儿是来执行实现了`Ordered`顺序接口的`BeanDefinitionRegistryPostProcessor`组件的方法的。
+
+原理同上面都是一模一样的，都是获取到容器中所有`BeanDefinitionRegistryPostProcessor`组件，紧接着再来遍历所有这些`BeanDefinitionRegistryPostProcessor`组件，挨个遍历出来之后，会判断每一个`BeanDefinitionRegistryPostProcessor`组件是不是实现了`Ordered`这个顺序接口，若是，则会先按照指定顺序来排个序，然后再调用该组件的`postProcessBeanDefinitionRegistry`方法。
+![](http://120.77.237.175:9080/photos/springanno/204.jpg)
+
+###### 执行没有实现任何优先级或者是顺序接口的BeanDefinitionRegistryPostProcessor的postProcessBeanDefinitionRegistry方法
+
+继续按下`F6`快捷键让程序往下运行，直至运行到下面这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/205.jpg)
+
+很明显，这块是来执行没有实现任何优先级或者是顺序接口的`BeanDefinitionRegistryPostProcessor`组件的方法的。
+
+原理基本同上，首先获取到容器中所有`BeanDefinitionRegistryPostProcessor`组件，然后遍历所有这些`BeanDefinitionRegistryPostProcessor`组件，挨个遍历出来之后，接着再调用该组件的`postProcessBeanDefinitionRegistry`方法。
+
+```java
+invokeBeanDefinitionRegistryPostProcessors(currentRegistryProcessors, registry);
+```
+
+继续按下`F6`快捷键让程序往下运行，直至运行到下面这行代码处，这时，你会发现控制台有内容输出。
+
+![](http://120.77.237.175:9080/photos/springanno/206.jpg)
+
+很明显，这是咱们自己编写的`MyBeanDefinitionRegistryPostProcessor`类中的`postProcessBeanDefinitionRegistry`方法执行之后所输出的信息。
+
+##### 执行BeanDefinitionRegistryPostProcessor的postProcessBeanFactory方法
+
+因为`BeanDefinitionRegistryPostProcessor`是`BeanFactoryPostProcessor`的子接口，所以，接下来还得执行`BeanDefinitionRegistryPostProcessor`组件里面的`postProcessBeanFactory`方法。
+
+按下F6快捷键让程序往下运行，往下运行一步即可，这时，你同样会发现控制台有内容输出。
+
+![](http://120.77.237.175:9080/photos/springanno/207.jpg)
+
+很明显，这是咱们自己编写的`MyBeanDefinitionRegistryPostProcessor`类中的`postProcessBeanFactory`方法执行之后所输出的信息。
+
+也就是说，对于`BeanDefinitionRegistryPostProcessor`组件来说，它里面`postProcessBeanDefinitionRegistry`方法会先被调用，`postProcessBeanFactory`方法会后被调用。
+
+#### 再执行BeanFactoryPostProcessor的方法
+
+`BeanDefinitionRegistryPostProcessor`是要优先于`BeanFactoryPostProcessor`执行的。在上面已经执行完了`BeanDefinitionRegistryPostProcessor`的方法，接下来就得来执行`BeanFactoryPostProcessor`的方法了。
+
+执行的流程是怎样的呢？按下`F6`快捷键让程序往下运行，直至程序运行到以下这行代码处，可以看到现在是来从`beanFactory`中按照类型获取所有`BeanFactoryPostProcessor`组件的名字。
+![](http://120.77.237.175:9080/photos/springanno/208.jpg)
+
+获取到所有`BeanFactoryPostProcessor`组件之后，接下来，就得遍历所有这些`BeanFactoryPostProcessor`组件了，挨个遍历出来之后，按照是否实现了PriorityOrdered`接口、`Ordered`接口以及没有实现这两个接口这三种情况进行分类，将其分别存储于三个`ArrayList`中
+![](http://120.77.237.175:9080/photos/springanno/209.jpg)
+
+紧接着，按照顺序依次执行`BeanFactoryPostProcessors`组件对应的`postProcessBeanFactory`方法。
+
+![](http://120.77.237.175:9080/photos/springanno/210.jpg)
+
+也就是说，先来执行实现了`PriorityOrdered`优先级接口的`BeanFactoryPostProcessor`组件的`postProcessBeanFactory`方法，再来执行实现了`Ordered`顺序接口的`BeanFactoryPostProcessor`组件的`postProcessBeanFactory方法，最后再来执行没有实现任何优先级或者是顺序接口的`BeanFactoryPostProcessor`组件的`postProcessBeanFactory`方法。
+
+程序直至到这儿，才是来执行所有`BeanFactoryPostProcessor`组件的`postProcessBeanFactory`方法的呢？
+
+继续按下F6快捷键让程序往下运行，直至程序运行到以下这行代码处，这时，发现控制台有内容输出。
+![](http://120.77.237.175:9080/photos/springanno/211.jpg)
+
+### 小结
+
+继续按下`F6`快捷键让程序往下运行，直至程序运行到以下这行代码处，这时，`invokeBeanFactoryPostProcessors`方法才总算是执行完了。
+
+![](http://120.77.237.175:9080/photos/springanno/212.jpg)
+
+至此，`invokeBeanFactoryPostProcessors`方法最主要的核心作用就是执行了`BeanDefinitionRegistryPostProcessor`的`postProcessBeanDefinitionRegistry`和`postProcessBeanFactory`这俩方法，以及`BeanFactoryPostProcessors`的`postProcessBeanFactory`方法。
+
+`BeanDefinitionRegistryPostProcessor`是要优先于`BeanFactoryPostProcessor`执行的。
