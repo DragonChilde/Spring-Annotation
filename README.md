@@ -6522,11 +6522,35 @@ beanFactory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class, true,
 
 这行代码的意思，就是来获取容器中所有实现了`BeanDefinitionRegistryPostProcessor`接口的组件。**那么，为什么每次执行前，都会运行这样一行代码呢？这是因为每次执行可能会加载进来新的`BeanDefinition`，所以每次都要重新获取。**
 
+###### 执行实现了PriorityOrdered优先级接口的BeanDefinitionRegistryPostProcessor的postProcessBeanDefinitionRegistry方法
 
+继续按下F6快捷键让程序往下运行，往下运行一步即可，`Inspect`一下`postProcessorNames`变量的值，你会发现从IOC容器中拿到的只有一个名字为`org.springframework.context.annotation.internalConfigurationAnnotationProcessor`的组件，即默认拿到的是`ConfigurationClassPostProcessor`这样一个`BeanDefinitionRegistryPostProcessor`。
 
+![](http://120.77.237.175:9080/photos/springanno/201.jpg)
 
+第一次获取容器中所有实现了`BeanDefinitionRegistryPostProcessor`接口的组件时，其实只能获取到`ConfigurationClassPostProcessor`，因为手工加的只是`BeanDefinition`，等`ConfigurationClassPostProcessor`把对应的`Definition`加载后，下面才能获取到我们手工加载的BeanDefinition。
 
+获取到容器中所有`BeanDefinitionRegistryPostProcessor`组件之后，接下来，就得遍历所有这些`BeanDefinitionRegistryPostProcessor`组件了，挨个遍历出来之后，会判断每一个`BeanDefinitionRegistryPostProcessor`组件是不是实现了`PriorityOrdered`这个优先级接口，若是，则会先按照优先级排个序，然后再调用该组件的`postProcessBeanDefinitionRegistry`方法。
 
+![](http://120.77.237.175:9080/photos/springanno/202.jpg)
+
+继续按下`F6`快捷键让程序往下运行，直至运行到下面这行代码处，这儿就是来执行每一个实现了`PriorityOrdered`优先级接口的`BeanDefinitionRegistryPostProcessor`组件的方法的。
+
+```java
+invokeBeanDefinitionRegistryPostProcessors(currentRegistryProcessors, registry);
+```
+
+不妨按下`F5`快捷键进入该方法中去看一看，如下图所示，可以看到这儿是来执行 `BeanDefinitionRegistryPostProcessor`组件的`postProcessBeanDefinitionRegistry`方法的。
+
+```java
+	private static void invokeBeanDefinitionRegistryPostProcessors(
+			Collection<? extends BeanDefinitionRegistryPostProcessor> postProcessors, BeanDefinitionRegistry registry) {
+
+		for (BeanDefinitionRegistryPostProcessor postProcessor : postProcessors) {
+			postProcessor.postProcessBeanDefinitionRegistry(registry);
+		}
+	}
+```
 
 ###### 执行实现了Ordered顺序接口的BeanDefinitionRegistryPostProcessor的postProcessBeanDefinitionRegistry方法
 
@@ -6600,3 +6624,252 @@ invokeBeanDefinitionRegistryPostProcessors(currentRegistryProcessors, registry);
 至此，`invokeBeanFactoryPostProcessors`方法最主要的核心作用就是执行了`BeanDefinitionRegistryPostProcessor`的`postProcessBeanDefinitionRegistry`和`postProcessBeanFactory`这俩方法，以及`BeanFactoryPostProcessors`的`postProcessBeanFactory`方法。
 
 `BeanDefinitionRegistryPostProcessor`是要优先于`BeanFactoryPostProcessor`执行的。
+
+## 注册BeanPostProcessor
+
+`invokeBeanFactoryPostProcessors`方法，该方法所做的事情无非就是在`BeanFactory`准备好以后，执行`BeanFactoryPostProcessor`的方法。
+
+接下来，就是`registerBeanPostProcessors`方法了。该方法就是来注册`BeanPostProcessor`的，即注册`bean`的后置处理器。其实，从该方法的描述上，也能知道其作用就是注册`bean`的后置处理器，拦截`bean`的创建过程。
+
+### 获取所有的BeanPostProcessor
+
+按下`F5`快捷键进入`registerBeanPostProcessors`方法里面，如下图所示，可以看到在该方法里面会调用`PostProcessorRegistrationDelegate`类的`registerBeanPostProcessors`方法。
+
+```java
+protected void registerBeanPostProcessors(ConfigurableListableBeanFactory beanFactory) {
+		PostProcessorRegistrationDelegate.registerBeanPostProcessors(beanFactory, this);
+	}
+```
+
+于是，我们再次按下`F5`快捷键进入以上方法中，如下图所示，可以看到一开始就会获取所有`BeanPostProcessor`组件的名字。
+
+![](http://120.77.237.175:9080/photos/springanno/213.jpg)
+
+`BeanPostProcessor`接口旗下有非常多的子接口，查看一下`BeanPostProcessor`接口的继承树就知道了，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/214.jpg)
+
+`BeanPostProcessor`接口有很多子接口，而且每一个子接口，还有点不一样,不同接口类型的`BeanPostProcessor`在bean创建前后的执行时机是不一样的，虽然都是后置处理器。下面只介绍几个接口
+
+- `DestructionAwareBeanPostProcessor`:它是销毁bean的后置处理器
+- `InstantiationAwareBeanPostProcessor`
+- `SmartInstantiationAwareBeanPostProcessor`
+- `MergedBeanDefinitionPostProcessor`
+
+获取到所有的`BeanPostProcessor`组件之后，按下F6快捷键让程序往下运行，直至程序运行到下面这行代码处，可以看到现在向`beanFactory`中添加了一个BeanPostProcessorChecker`类型的后置处理器，它是来检查所有`BeanPostProcessor`组件的。
+
+![](http://120.77.237.175:9080/photos/springanno/215.jpg)
+
+### 按分好类的优先级顺序来注册BeanPostProcessor
+
+继续按下`F6`快捷键让程序往下运行，在这一过程中，可以看到后置处理器也可以按照是否实现了`PriorityOrdered`接口、`Ordered`接口以及没有实现这两个接口这三种情况进行分类。
+
+![](http://120.77.237.175:9080/photos/springanno/216.jpg)
+
+将所有的`BeanPostProcessor`组件分门别类之后，依次存储在不同的`ArrayLis`t集合中。
+
+其实，会发现不止有三个`ArrayList`集合，还有一个名字为`internalPostProcessors的ArrayList`集合。如果后置处理器是`MergedBeanDefinitionPostProcessor`这种类型的，那么它就会被存放在名字为`internalPostProcessors`的`ArrayList`集合中。
+
+由于`BeanPostProcessor`还是挺多的（除了IOC容器自己拥有的以外，还有咱们自己编写的），因此你得不停地按下F6快捷键让程序往下运行，直至程序把整个`for`循环执行完
+
+当程序运行完整个`for`循环后，可以看到这是来注册实现了`PriorityOrdered`优先级接口的`BeanPostProcessor`的。因为这儿调用了一个叫`registerBeanPostProcessors`的方法，该方法就是来注册`bean`的后置处理器的，而所谓的注册就是向`beanFactory`中添加进去这些`BeanPostProcessor`。
+
+按下F5快捷键进入到`registerBeanPostProcessors`方法中，如下
+
+![](http://120.77.237.175:9080/photos/springanno/217.jpg)
+
+然后，注册实现了`Ordered接口的BeanPostProcessor`，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/218.jpg)
+
+接着，再来注册既没有实现`PriorityOrdered`接口又没有实现`Ordered`接口的`BeanPostProcessor`，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/219.jpg)
+
+最后，再来注册`MergedBeanDefinitionPostProcessor`这种类型的`BeanPostProcessor`，因为名字为`internalPostProcessors`的`ArrayList`集合中存放的就是这种类型的`BeanPostProcessor`。
+
+![](http://120.77.237.175:9080/photos/springanno/220.jpg)
+
+除此之外，还会向`beanFactory`中添加一个`ApplicationListenerDetector`类型的`BeanPostProcessor`。不妨点进`ApplicationListenerDetector`类里面去看一看，如下图所示，它里面有一个`postProcessAfterInitialization`方法，该方法是在`bean`创建初始化之后，探测该`bean`是不是`ApplicationListener`的。
+![](http://120.77.237.175:9080/photos/springanno/221.jpg)
+
+也就是说，该方法的作用是检查哪些`bean`是监听器的。如果是，那么会将该`bean`放在容器中保存起来。
+
+> 注意:**以上只是来注册`bean`的后置处理器，即只是向`beanFactory`中添加了所有这些`bean`的后置处理器，而并不会执行它们。**
+
+## 初始化`MessageSource`组件
+
+让程序继续执行到代码（即`initMessageSource`方法）处。顾名思义，该方法是来初始化`MessageSource`组件的。对于`Spring MVC`而言，该方法主要是来做国际化功能的，如消息绑定、消息解析等。
+
+### 获取BeanFactory
+
+按下`F5`快捷键进入到`initMessageSource`方法里面，如下图所示，可以看到一开始是先来获取`BeanFactory`的。
+
+![](http://120.77.237.175:9080/photos/springanno/222.jpg)
+
+而这个`BeanFactory`，之前早就准备好了。
+
+### 看容器中是否有`id`为`messageSource`，类型是`MessageSource`的组件
+
+按下F6快捷键让程序继续往下运行，会发现有一个判断，即判断`BeanFactory`中是否有一个`id`为`messageSource`的组件。为什么会这么说呢，只要看一下常量`MESSAGE_SOURCE_BEAN_NAME`的值就知道了，如下图所示，该常量的值就是`messageSource`。
+
+![](http://120.77.237.175:9080/photos/springanno/223.jpg)
+
+### 若有，则赋值给`this.messageSource`
+
+如果有的话，那么会从`BeanFactory`中获取到`id`为`messageSource`，类型是`MessageSource`的组件，并将其赋值给`this.messageSource`。从下面这行代码看出。
+
+```java
+this.messageSource = beanFactory.getBean(MESSAGE_SOURCE_BEAN_NAME, MessageSource.class);
+```
+
+很显然，容器刚开始创建的时候，肯定是还没有的，所以程序会来到下面的else语句中。
+
+### 若没有，则创建一个`DelegatingMessageSource`类型的组件，并把创建好的组件注册在容器中
+
+如果没有的话，那么`Spring`自己会创建一个`DelegatingMessageSource`类型的对象，即`MessageSource`类型的组件。
+
+那么问题来了，这种`MessageSource`类型的组件有啥作用呢？不妨查看一下`MessageSource`接口的源码，如下图所示，它里面定义了很多重载的`getMessage`方法，该方法可以从配置文件（特别是国际化配置文件）中取出某一个key所对应的值。
+
+![](http://120.77.237.175:9080/photos/springanno/224.jpg)
+
+也就是说，这种`MessageSource`类型的组件的作用一般是取出国际化配置文件中某个`key`所对应的值，而且还能按照区域信息获取
+
+紧接着，把创建好的`MessageSource`类型的组件注册到容器中，所执行的是下面这行代码。
+
+![](http://120.77.237.175:9080/photos/springanno/225.jpg)
+
+那么，以后想获取国际化配置文件中的值的时候，就可以直接自动注入这个`MessageSource`类型的组件了，然后调用它的`getMessage`方法就行了，并且还能按照区域信息获取
+
+## 初始化事件派发器
+
+代码执行到（即`initApplicationEventMulticaster`方法）处。顾名思义，该方法是来初始化事件派发器的。
+
+按下`F5`快捷键进入到`initApplicationEventMulticaster`方法里面，如下图所示，可以看到一开始是先来获取BeanFactory的
+
+```java
+	protected void initApplicationEventMulticaster() {
+		ConfigurableListableBeanFactory beanFactory = getBeanFactory();	//获取BeanFactory
+		if (beanFactory.containsLocalBean(APPLICATION_EVENT_MULTICASTER_BEAN_NAME)) {
+			this.applicationEventMulticaster =
+					beanFactory.getBean(APPLICATION_EVENT_MULTICASTER_BEAN_NAME, ApplicationEventMulticaster.class);
+			if (logger.isTraceEnabled()) {
+				logger.trace("Using ApplicationEventMulticaster [" + this.applicationEventMulticaster + "]");
+			}
+		}
+		else {
+			this.applicationEventMulticaster = new SimpleApplicationEventMulticaster(beanFactory);
+			beanFactory.registerSingleton(APPLICATION_EVENT_MULTICASTER_BEAN_NAME, this.applicationEventMulticaster);
+			if (logger.isTraceEnabled()) {
+				logger.trace("No '" + APPLICATION_EVENT_MULTICASTER_BEAN_NAME + "' bean, using " +
+						"[" + this.applicationEventMulticaster.getClass().getSimpleName() + "]");
+			}
+		}
+	}
+```
+
+### 看容器中是否有`id`为`applicationEventMulticaster`，类型是`ApplicationEventMulticaster`的组件
+
+按下F6快捷键让程序继续往下运行，会发现有一个判断，即判断`BeanFactory`中是否有一个`id`为`applicationEventMulticaster`的组件。只要看一下常量`APPLICATION_EVENT_MULTICASTER_BEAN_NAME`的值，如下图所示，该常量的值就是`applicationEventMulticaster`。
+
+![](http://120.77.237.175:9080/photos/springanno/226.jpg)
+
+### 若有，则赋值给`this.applicationEventMulticaster`
+
+如果有的话，那么会从`BeanFactory`中获取到`id`为`applicationEventMulticaster`，类型是`ApplicationEventMulticaster`的组件，并将其赋值给`this.applicationEventMulticaster`。这可以从下面这行代码看出。
+
+```java
+this.applicationEventMulticaster =
+					beanFactory.getBean(APPLICATION_EVENT_MULTICASTER_BEAN_NAME, ApplicationEventMulticaster.class);
+```
+
+也就是说，如果我们之前已经在容器中配置了一个事件派发器，那么此刻就能从`BeanFactory`中获取到该事件派发器了。
+
+很显然，容器刚开始创建的时候，肯定是还没有的，所以程序会来到下面的`else`语句中。
+
+### 若没有，则创建一个`SimpleApplicationEventMulticaster`类型的组件，并把创建好的组件注册在容器中
+
+如果没有的话，那么`Spring`自己会创建一个`SimpleApplicationEventMulticaster`类型的对象，即一个简单的事件派发器。
+
+然后，把创建好的事件派发器组件注册到容器中，即添加到`BeanFactory`中，所执行的是下面这行代码。
+
+```java
+beanFactory.registerSingleton(APPLICATION_EVENT_MULTICASTER_BEAN_NAME, this.applicationEventMulticaster);
+```
+
+这样，我们以后其他组件要使用事件派发器，直接自动注入这个事件派发器组件即可。
+
+## `onRefresh()`
+
+按下`F6`快捷键让程序继续往下运行，直至运行到下面这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/227.jpg)
+
+于是，我们按下`F5`快捷键进入到以上`onRefresh`方法里面去看一看，如下图所示，发现它里面是空的。
+
+```java
+	protected void onRefresh() throws BeansException {
+		// For subclasses: do nothing by default.
+	}
+```
+
+是不是觉得很熟悉，因为之前就见到过两次类似这样的空方法，一次是在做容器刷新前的预处理工作时，可以让子类自定义个性化的属性设置，另一次是在BeanFactory创建并预处理完成以后，可以让子类做进一步的设置。
+
+同理，以上`onRefresh`方法就是留给子类来重写的，这样是为了给我们留下一定的弹性，当子类（也可以说是子容器）重写该方法后，在容器刷新的时候就可以再自定义一些逻辑了，比如给容器中多注册一些组件之类的。
+
+## `registerListeners()`
+
+继续按下`F6`快捷键让程序继续往下运行，直至运行到下面这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/228.jpg)
+
+按照`registerListeners`方法上面的注释来说，该方法是来检查监听器并注册它们的。也就是说，该方法会将我们项目里面的监听器（也即咱们自己编写的`ApplicationListener`）注册进来。
+
+```java
+	protected void registerListeners() {
+		// Register statically specified listeners first.
+        //遍历从容器中获取到的所有的ApplicationListener.然后将遍历出的每一个监听器添加到事件派发器中
+		for (ApplicationListener<?> listener : getApplicationListeners()) {
+			getApplicationEventMulticaster().addApplicationListener(listener);
+		}
+
+		// Do not initialize FactoryBeans here: We need to leave all regular beans
+		// uninitialized to let post-processors apply to them!
+		String[] listenerBeanNames = getBeanNamesForType(ApplicationListener.class, true, false);
+		for (String listenerBeanName : listenerBeanNames) {
+			getApplicationEventMulticaster().addApplicationListenerBean(listenerBeanName);
+		}
+
+		// Publish early application events now that we finally have a multicaster...
+		Set<ApplicationEvent> earlyEventsToProcess = this.earlyApplicationEvents;
+		this.earlyApplicationEvents = null;
+		if (earlyEventsToProcess != null) {
+			for (ApplicationEvent earlyEvent : earlyEventsToProcess) {
+				getApplicationEventMulticaster().multicastEvent(earlyEvent);
+			}
+		}
+	}
+```
+
+可以看到一开始会有一个`for`循环，该`for`循环是来遍历从容器中获取到的所有的`ApplicationListener`的，然后将遍历出的每一个监听器添加到事件派发器中。
+
+当我们按下`F6`快捷键让程序继续往下运行时，发现并没有进入`for`循环中，而是来到了下面这行代码处。
+
+```java
+String[] listenerBeanNames = getBeanNamesForType(ApplicationListener.class, true, false);
+```
+
+这是调用`getBeanNamesForType`方法从容器中拿到`ApplicationListener`类型的所有`bean`的名字的。也就是说，首先会从容器中拿到所有的`ApplicationListener`组件。
+
+按下F6快捷键让程序继续往下运行，运行一步即可，这时`Inspect`一下`listenerBeanNames`变量的值，你就能看到确实是获取到了自己编写的`ApplicationListener`了，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/229.jpg)
+
+然后，将获取到的每一个监听器添加到事件派发器中。
+
+当早期容器中有一些事件时，会将这些事件保存在名为`earlyApplicationEvents的Set`集合中。这时，会先获取到事件派发器，再利用事件派发器将这些事件派发出去。也就是说，派发之前步骤产生的事件。
+
+而现在呢，容器中默认还没有什么事件，所以，程序压根就不会进入到下面的`for`循环中去派发事件。当程序运行至下面这行代码处时，`registerListeners`方法就执行完了，它所做的事情很简单，无非就是从容器中拿到所有的`ApplicationListener`组件，然后将每一个监听器添加到事件派发器中。
+![](http://120.77.237.175:9080/photos/springanno/230.jpg)
+
+以上`finishBeanFactoryInitialization`方法是非常非常重要的，顾名思义，它是来初始化所有剩下的单实例`bean`的。执行完该方法之后，就完成`BeanFactory`的初始化了。
