@@ -6873,3 +6873,178 @@ String[] listenerBeanNames = getBeanNamesForType(ApplicationListener.class, true
 ![](http://120.77.237.175:9080/photos/springanno/230.jpg)
 
 以上`finishBeanFactoryInitialization`方法是非常非常重要的，顾名思义，它是来初始化所有剩下的单实例`bean`的。执行完该方法之后，就完成`BeanFactory`的初始化了。
+
+## 初始化所有剩下的单实例`bean`
+
+### `finishBeanFactoryInitialization(beanFactory)`：初始化所有剩下的单实例`bean`
+
+按下`F5`快捷键进入`finishBeanFactoryInitialization`方法里面
+
+```java
+	protected void finishBeanFactoryInitialization(ConfigurableListableBeanFactory beanFactory) {
+		// Initialize conversion service for this context.
+		if (beanFactory.containsBean(CONVERSION_SERVICE_BEAN_NAME) &&
+				beanFactory.isTypeMatch(CONVERSION_SERVICE_BEAN_NAME, ConversionService.class)) {
+			beanFactory.setConversionService(
+					beanFactory.getBean(CONVERSION_SERVICE_BEAN_NAME, ConversionService.class));
+		}
+
+		// Register a default embedded value resolver if no bean post-processor
+		// (such as a PropertyPlaceholderConfigurer bean) registered any before:
+		// at this point, primarily for resolution in annotation attribute values.
+		if (!beanFactory.hasEmbeddedValueResolver()) {
+			beanFactory.addEmbeddedValueResolver(strVal -> getEnvironment().resolvePlaceholders(strVal));
+		}
+
+		// Initialize LoadTimeWeaverAware beans early to allow for registering their transformers early.
+		String[] weaverAwareNames = beanFactory.getBeanNamesForType(LoadTimeWeaverAware.class, false, false);
+		for (String weaverAwareName : weaverAwareNames) {
+			getBean(weaverAwareName);
+		}
+
+		// Stop using the temporary ClassLoader for type matching.
+		beanFactory.setTempClassLoader(null);
+
+		// Allow for caching all bean definition metadata, not expecting further changes.
+		beanFactory.freezeConfiguration();
+
+		// Instantiate all remaining (non-lazy-init) singletons.
+		beanFactory.preInstantiateSingletons();
+	}
+```
+
+上面所有的代码中,重点放在`beanFactory.preInstantiateSingletons()`,可以很清楚地从该行代码上的注释看出，这儿是来初始化所有剩下的单实例`bean`的。
+
+### `beanFactory.preInstantiateSingletons()`：初始化所有剩下的单实例`bean`
+
+#### 获取容器中所有的bean，然后依次进行初始化和创建对象
+
+按下F5快捷键进入`preInstantiateSingletons`方法里面，如下图所示，可以看到一开始会先获取容器中所有`bean`的名字。当程序运行至如下这行代码处时，我们不妨`Inspect`一下`beanNames`变量的值，可以看到容器中现在有好多`bean`，有自定义编写的组件，有`Spring`默认内置的一些组件。
+![](http://120.77.237.175:9080/photos/springanno/231.jpg)
+
+对于容器中现在所有的这些`bean`来说，有些`bean`可能已经在之前的步骤中创建以及初始化完成了。因此，`preInstantiateSingletons`方法就是来初始化所有剩下的`bean`的。你很明显地看到，这就有一个`for`循环，该`for`循环是来遍历容器中所有的`bean`，然后依次触发它们的整个初始化逻辑的。
+
+#### 获取bean的定义注册信息
+
+进入`for`循环中之后，会获取到每一个遍历出来的`bean`的定义注册信息。我们要知道`bean`的定义注册信息是需要用`RootBeanDefinition`这种类型来进行封装的。
+
+```java
+RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
+```
+
+#### 根据bean的定义注册信息判断bean是否是抽象的、单实例的、懒加载的
+
+接下来，会根据`bean`的定义注册信息来判断`bean`是否是抽象的、单实例的、懒加载的。如果该`bean`既不是抽象的也不是懒加载的（之前就说过懒加载，它就是用到的时候再创建对象，与@Lazy注解有关），并且还是单实例的，那么这个时候程序就会进入到最外面的if判断语句中,即以下语句中
+
+按下`F6`快捷键让程序继续往下运行，你会发现还有一个判断，它是来判断当前`bean`是不是`FactoryBean`的，若是则进入到if判断语句中，若不是则进入到`else`分支语句中。
+
+```java
+			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
+                //若当前bean是FactoryBean接口的,则进入到这里面来
+				if (isFactoryBean(beanName)) {
+					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
+					if (bean instanceof FactoryBean) {
+						final FactoryBean<?> factory = (FactoryBean<?>) bean;
+						boolean isEagerInit;
+						if (System.getSecurityManager() != null && factory instanceof SmartFactoryBean) {
+							isEagerInit = AccessController.doPrivileged((PrivilegedAction<Boolean>)
+											((SmartFactoryBean<?>) factory)::isEagerInit,
+									getAccessControlContext());
+						}
+						else {
+							isEagerInit = (factory instanceof SmartFactoryBean &&
+									((SmartFactoryBean<?>) factory).isEagerInit());
+						}
+						if (isEagerInit) {
+							getBean(beanName);
+						}
+					}
+				}
+                //若不是,则走这个逻辑
+				else {
+					getBean(beanName);
+				}
+			}
+		}
+```
+
+点进`isFactoryBean`方法里面去看一看，如下图所示，可以很清楚地看到该方法就是来判断当前`bean`是不是属于`FactoryBean`接口的。
+
+```java
+	@Override
+	public boolean isFactoryBean(String name) throws NoSuchBeanDefinitionException {
+		String beanName = transformedBeanName(name);
+		Object beanInstance = getSingleton(beanName, false);
+		if (beanInstance != null) {
+			return (beanInstance instanceof FactoryBean);
+		}
+		// No singleton instance found -> check bean definition.
+		if (!containsBeanDefinition(beanName) && getParentBeanFactory() instanceof ConfigurableBeanFactory) {
+			// No bean definition found in this factory -> delegate to parent.
+			return ((ConfigurableBeanFactory) getParentBeanFactory()).isFactoryBean(name);
+		}
+		return isFactoryBean(beanName, getMergedLocalBeanDefinition(beanName));
+	}
+```
+
+经过判断，如果我们的`bean`确实实现了`FactoryBean`接口，那么`Spring`就会调用`FactoryBean`接口里面的`getObject`方法来帮我们创建对象，查看`FactoryBean`接口的源码，会发现它里面定义了一个`getObject`方法，之前是不是已经说过了
+
+![](http://120.77.237.175:9080/photos/springanno/232.jpg)
+
+来看看第一个`bean`究竟是不是属于`FactoryBean`接口的，如下图。
+
+![](http://120.77.237.175:9080/photos/springanno/233.jpg)
+
+那么它是不是实现了`FactoryBean`接口呢？按下`F6`快捷键让程序继续往下运行，发现并没有，因为此时程序来到了下面的`else`分支语句中，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/234.jpg)
+
+为了能够继续跟踪`Spring`源码的执行过程，可以在`getBean(beanName)`方法处打上一个断点
+
+然后，需要给程序不断地放行了，一直放行到自定义编写的`bean`中，例如，之前在讲解`Spring`其他的扩展原理时，编写了一个如下的配置类。
+
+![](http://120.77.237.175:9080/photos/springanno/235.jpg)
+
+从该配置类的代码中，可以看到还会向容器中注册一个自定义编写的`Car`组件。同样地，为了方便继续跟踪``Spring``源码的执行过程，也可以在`public Car car()`方法上打上一个断点。
+
+打上以上两个断点之后，按下`F8`快捷键让程序运行直到执行到自定义的Car对象，
+
+![](http://120.77.237.175:9080/photos/springanno/236.jpg)
+
+程序运行至此，可以知道`Car`对象是得通过`getBean`方法来创建的。于是，接下来，就来看看这个`Car`对象它到底是怎么创建的。
+
+其实，之前早已用过这个方法了，查阅之前自定义编写的单元测试类，例如`IOCTest_AOP`，就能看到确实是调用了`IOC`容器的`getBean`方法，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/237.jpg)
+
+按下`F5`快捷键进入`getBean`方法里面去看一看，如下图所示，可以看到它里面又调用了一个叫`doGetBean`的方法。
+
+```java
+	@Override
+	public Object getBean(String name) throws BeansException {
+		return doGetBean(name, null, null, false);
+	}
+```
+
+继续按下`F5`快捷键进入`doGetBean`方法里面去看一看，如下图所示，可以看到一开始会拿到我们的`bean`的名字。
+
+![](http://120.77.237.175:9080/photos/springanno/238.jpg)
+
+然后，根据我们`bean`的名字尝试获取缓存中保存的单实例`bean`。可以看到这儿调用的是`getSingleton`方法，而且从缓存中获取到了之后会赋值给一个叫`sharedInstance`的变量，它翻译过来就是共享的`bean`。
+
+```java
+Object sharedInstance = getSingleton(beanName);
+```
+
+为什么这儿会先尝试从缓存中获取我们单实例`bean`呢？这是因为以前有一些单实例`bean`已经被创建好了，而且这些单实例`bean`也已经被缓存起来了，所有创建过的单实例bean都会被缓存起来，所以这儿会调用`getSingleton`方法先从缓存中获取。如果能获取到，那么说明这个单实例`bean`之前已经被创建过了。
+
+为了看得更加清楚，我们不妨按下F5快捷键进入`getSingleton`方法里面去看一看，如下图所示，发现它里面是下面这个样子的，好像是又调用了一个重载的`getSingleton`方法。
+
+```java
+	@Override
+	@Nullable
+	public Object getSingleton(String beanName) {
+		return getSingleton(beanName, true);
+	}
+```
+
