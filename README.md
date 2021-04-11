@@ -7048,3 +7048,111 @@ Object sharedInstance = getSingleton(beanName);
 	}
 ```
 
+再继续按下`F5`快捷键进入以上`getSingleton`方法里面去看一看，如下图所示，可以看到从缓存中获取其实就是从`singletonObjects`属性里面来获取。
+
+```java
+	@Nullable
+	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
+        //singletonObjects它是该类里面的一个属性
+		Object singletonObject = this.singletonObjects.get(beanName);
+		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
+			synchronized (this.singletonObjects) {
+				singletonObject = this.earlySingletonObjects.get(beanName);
+				if (singletonObject == null && allowEarlyReference) {
+					ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
+					if (singletonFactory != null) {
+						singletonObject = singletonFactory.getObject();
+						this.earlySingletonObjects.put(beanName, singletonObject);
+						this.singletonFactories.remove(beanName);
+					}
+				}
+			}
+		}
+		return singletonObject;
+	}
+```
+
+说明一下，`singletonObjects`是`DefaultSingletonBeanRegistry`类里面的一个属性，点它，如下图所示。
+
+```java
+	private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
+```
+
+可以看到`singletonObjects`属性就是一个`Map`集合，该`Map`集合里面缓存的就是所有的单实例`bean`，而且还是按照`bean`的名字和其实例对象缓存起来的
+
+还是回到`getSingleton`方法处，`Inspect`一下`singletonObjects`属性的值，发现不仅能看到一些已经创建好的`bean`，而且还能看到一些其他的属性信息以及环境变量等等。
+
+![](http://120.77.237.175:9080/photos/springanno/239.jpg)
+
+按下`F6`快捷键让程序继续往下运行，运行一步即可，此时`Inspect`一下`singletonObjec`变量的值，发现是`null`，如下图所示，这说明名字为`car`的`bean`从缓存中是获取不到的。
+
+![](http://120.77.237.175:9080/photos/springanno/240.jpg)
+
+继续按下`F6`快捷键让程序往下运行，直至运行到下面这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/241.jpg)
+
+这说明，第一次想从缓存中获取的`bean`，是肯定获取不到的。
+
+继续按下`F6`快捷键让程序往下运行，此时程序并没有进入到以上if判断语句中，而是来到了下面这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/242.jpg)
+
+好了，现在是该开始创建`bean`的对象了，从上图中可以看到，首先会来获取一个（父）`BeanFactory`，因为后来也是用它来创建对象的。然后，立马会有一个判断，即判断是不是能获取到（父）`BeanFactory`。这儿为什么会强调要获取 （父） `BeanFactory`呢？是因为跟`Spring MVC`与`Spring`的整合有关，它俩整合起来以后，就会有父子容器了
+按下`F6`快捷键让程序继续往下运行，会发现程序并没有进入到`if`判断语句中，而是来到了下面这行代码处，这说明并没有获取到（父）`BeanFactory`。
+
+![](http://120.77.237.175:9080/photos/springanno/243.jpg)
+
+可以看到这儿又有一个判断，而且程序能够进入到该if判断语句中，如下图所示。
+
+```java
+if (!typeCheckOnly) {
+    //先来标记当前bean已经被创建,相当于做了一个标记
+	markBeanAsCreated(beanName);
+}
+```
+
+那么，`markBeanAsCreated`方法主要是来做什么的呢？它是在`bean`被创建之前，先来标记其为已创建，相当于做了一个小标记，这主要是为了防止多个线程同时来创建同一个`bean`，从而保证了`bean`的单实例特性。
+
+按下F6快捷键让程序继续往下运行，当程序运行至下面这行代码处时，可以看到这是来获取`bean`的定义信息的。
+
+```java
+final RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+```
+
+继续按下`F6`快捷键让程序往下运行，直至运行到下面这行代码处。
+
+```java
+String[] dependsOn = mbd.getDependsOn();
+```
+
+可以看到这儿调用了`bean`定义信息对象的一个`getDependsOn`方法，它是来获取当前`bean`所依赖的其他`bean`的。
+
+还记得之前在编写`Spring`的`XML`配置文件时，使用<bean>标签向容器中注册某个组件吗？比如如下的<bean>标签向容器中注册了一个名字为`person`的`bean`。
+
+```
+<bean id="person" class="com.anno.bean.Person">
+    <property name="name" value="张三"/>
+    <property name="age" value="10"/>
+</bean>
+```
+
+其实，我们还可以在`<bean>`标签内使用一个`depends-on`属性，如下所示。
+
+```
+<bean id="person" class="com.anno.bean.Person" depends-on="book,user">
+    <property name="name" value="张三"/>
+    <property name="age" value="10"/>
+</bean>
+```
+
+添加上depends-on="book,user"`这样一个属性之后，那么在创建名字为`person`的`bean`之前，得先把名字为`book`和`user`的`bean`给创建出来。也就是说，`depends-on`属性决定了`bean`的创建顺序。
+
+回到主题，可以看到，`depends-on`属性也在`Spring`的源码中得到了体现，这可以参考上图。可以看到，会先获取当前`bean`所依赖的其他`bean`，如果要创建的`bean`确实有依赖其他`bean`的话，那么还是会调用`getBean`方法把所依赖的bean都创建出来。
+
+![](http://120.77.237.175:9080/photos/springanno/244.jpg)
+
+有没有发现一直在研究这个`getBean`方法啊？研究到这里，又会发现使用它来创建`bean`之前，它做的一件大事，就是把要创建的`bean`所依赖的`bean`先创建出来，当然了，前提是要创建的`bean`是确实是真的有依赖其他`bean`。
+
+继续按下F6快捷键让程序往下运行，会发现程序并没有进入到if判断语句中，而是来到了下面这行代码处。
+![](http://120.77.237.175:9080/photos/springanno/245.jpg)
