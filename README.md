@@ -7156,3 +7156,97 @@ String[] dependsOn = mbd.getDependsOn();
 
 继续按下F6快捷键让程序往下运行，会发现程序并没有进入到if判断语句中，而是来到了下面这行代码处。
 ![](http://120.77.237.175:9080/photos/springanno/245.jpg)
+
+在这会做一个判断，即判断`bean`是不是单实例的，由于`bean`就是单实例的，所以程序会进入到if判断语句中，来启动单实例`bean`的创建流程。
+
+那么是怎么来启动单实例`bean`的创建流程的呢？可以看到，现在是调用了一个叫`getSingleton`的方法，而且在调用该方法时，还传入了两个参数，第一个参数是单实例`bean`的名字，第二个参数是`ObjectFactory`（是不是可以叫它Object工厂呢？）对象。
+
+`Spring`就是利用它来创建单实例`bean`的对象的。里面还调用了一个`createBean`方法呢?
+
+所以，为了方便继续跟踪`Spring`源码的执行过程，不妨在`createBean`方法处打上一个断点，如下图所示
+![](http://120.77.237.175:9080/photos/springanno/246.jpg)
+
+于是，按下`F8`快捷键让程序直接运行到下一个断点，此时程序来到了`createBean`方法处，现在要调用该方法来创建`bean`的对象,为了搞清楚单实例`bean`的创建流程，不妨按下`F5`快捷键进入到`createBean`方法里面去看一看，如下图所示。当程序往下运行时，可以看到会先拿到`bean`的定义信息，然后再来解析要创建的`bean`的类型。
+
+![](http://120.77.237.175:9080/photos/springanno/247.jpg)
+
+继续让程序往下运行，直至运行到下面这行代码处为止。
+
+![](http://120.77.237.175:9080/photos/springanno/248.jpg)
+
+可以看到，在创建`bean`的对象之前，会调用了一个`resolveBeforeInstantiation`方法。看该方法上的注释，它说是给`BeanPostProcessor`一个机会来提前返回`bean`的代理对象，这主要是为了解决依赖注入问题。也就是说，这是让`BeanPostProcessor`先拦截并返回代理对象。
+
+但是，这究竟是哪个`BeanPostProcessor`在工作呢？之前就说过，`BeanPostProcessor`是有非常多的，一般而言，`BeanPostProcessor`都是在创建完`bean`对象初始化前后进行拦截的。而现在还没创建对象呢，因为是调用`createBean`方法来创建对象的，还记得吗？这也就是说，`bean`的对象还未创建之前，就已经有了一个`BeanPostProcessor`，那么这个`BeanPostProcess`是谁呢？
+
+不妨按下F5快捷键进入`resolveBeforeInstantiation`方法里面，如下图所示，当程序运行到下面这行代码处时，原来是`InstantiationAwareBeanPostProcessor`这种类型的`BeanPostProcessor`。
+
+![](http://120.77.237.175:9080/photos/springanno/249.jpg)
+
+可以看到这儿是来判断是否有`InstantiationAwareBeanPostProcessor`这种类型的后置处理器的。如果有，那么就会来执行`InstantiationAwareBeanPostProcessor`这种类型的后置处理器。那么，其执行逻辑又是怎么样的呢？看到那个`applyBeanPostProcessorsBeforeInstantiation`方法了没有，直接点进去看下，如下图所示。
+
+```java
+	@Nullable
+	protected Object applyBeanPostProcessorsBeforeInstantiation(Class<?> beanClass, String beanName) {
+		for (BeanPostProcessor bp : getBeanPostProcessors()) {
+			if (bp instanceof InstantiationAwareBeanPostProcessor) {
+				InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+				Object result = ibp.postProcessBeforeInstantiation(beanClass, beanName);
+				if (result != null) {
+					return result;
+				}
+			}
+		}
+		return null;
+	}
+```
+
+是不是看到了这样的逻辑？在该方法中，会先判断遍历出的每一个`BeanPostProcessor`是不是`InstantiationAwareBeanPostProcessor`这种类型的，如果是，那么便来触发`其postProcessBeforeInstantiation`方法，该方法定义在`InstantiationAwareBeanPostProcessor`接口中。
+
+![](http://120.77.237.175:9080/photos/springanno/250.jpg)
+
+如果`applyBeanPostProcessorsBeforeInstantiation`方法执行完之后返回了一个对象，并且还不为`null`，那么紧接着就会来执行后面的`applyBeanPostProcessorsAfterInitialization`方法。
+
+不妨直接点进`applyBeanPostProcessorsAfterInitialization`方法里面去看一下，如下图所示。
+
+```java
+	@Override
+	public Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName)
+			throws BeansException {
+
+		Object result = existingBean;
+		for (BeanPostProcessor processor : getBeanPostProcessors()) {
+			Object current = processor.postProcessAfterInitialization(result, beanName);
+			if (current == null) {
+				return result;
+			}
+			result = current;
+		}
+		return result;
+	}
+```
+
+可以看到它里面是来执行每一个`BeanPostProcessor`的`postProcessAfterInitialization`方法的。注意，`postProcessAfterInitialization`方法是定义在`BeanPostProcessor`接口中的，只不过是`InstantiationAwareBeanPostProcessor`接口继承过来了而已。
+
+也就是说，如果有`InstantiationAwareBeanPostProcessor`这种类型的后置处理器，那么会先执行其`postProcessBeforeInstantiation`方法，并看该方法有没有返回值（即创建代理对象），若有则再执行其`postProcessAfterInitialization`方法。现在，该知道`InstantiationAwareBeanPostProcessor`这种类型的后置处理器中两个方法的执行时机了吧
+
+按下F6快捷键让程序继续往下运行，直至运行到下面这行代码处，看来确实是有`InstantiationAwareBeanPostProcessor`这种类型的后置处理器。
+
+![](http://120.77.237.175:9080/photos/springanno/251.jpg)
+
+然后，按下F5快捷键进入`applyBeanPostProcessorsBeforeInstantiation`方法里面，如下图所示，可以看到里面会遍历获取到的所有的`BeanPostProcessor`，接着再来判断遍历出的每一个`BeanPostProcessor`是不是`InstantiationAwareBeanPostProcessor`这种类型的。很明显，遍历出的第一个`BeanPostProcessor`并不是`InstantiationAwareBeanPostProcessor`这种类型的，所以程序并没有进入到最外面的`if`判断语句中。
+![](http://120.77.237.175:9080/photos/springanno/252.jpg)
+
+继续让程序往下运行，发现这时遍历出的第二个`BeanPostProcessor`是`ConfigurationClassPostProcessor`，而且它还是`InstantiationAwareBeanPostProcessor`这种类型的，于是，程序自然就进入到了最外面的`if`判断语句中，如下图所示。
+![](http://120.77.237.175:9080/photos/springanno/253.jpg)
+
+`ConfigurationClassPostProcessor`这种后置处理器是来解析标准了`@Configuration`注解的配置类的。
+
+紧接着便会来执行`ConfigurationClassPostProcessor`这种后置处理器的`postProcessBeforeInstantiation`方法了，但是该方法的返回值为`null`。于是，继续让程序往下运行，直至遍历完所有的`BeanPostProcessor`，返回到下面这行代码处。
+![](http://120.77.237.175:9080/photos/springanno/254.jpg)
+
+此时，`applyBeanPostProcessorsBeforeInstantiation`方法便执行完了，也知道它里面做了些什么，只不过它并没有返回创建的代理对象，因此，程序继续往下运行，并不会进入到下面的`if`判断语句中，而是来到了下面这行代码处。
+
+```java
+bd.beforeInstantiationResolved = (bean != null);
+```
+
