@@ -7250,3 +7250,66 @@ String[] dependsOn = mbd.getDependsOn();
 bd.beforeInstantiationResolved = (bean != null);
 ```
 
+继续按下`F6`快捷键让程序往下运行，直至运行到下面这行代码处为止。
+
+![](http://120.77.237.175:9080/photos/springanno/255.jpg)
+
+这时，`resolveBeforeInstantiation`方法总算是执行完了。它是在创建单实例`bean`之前，先来给`BeanPostProcessor`一个返回其代理对象的机会。但是，此刻是没有返回单实例`bean`的代理对象的,如上图所示bean为null
+
+如果1InstantiationAwareBeanPostProcessor1这种类型的后置处理器并没有返回`bean`的代理对象，那么接下来该怎么办呢？
+
+那继续按下F6快捷键让程序往下运行了，继续执行下面的流程，当程序运行到下面这行代码处时，发现调用了一个叫`doCreateBean`的方法，顾名思义，该方法就是来创建`bean`的实例的。
+![](http://120.77.237.175:9080/photos/springanno/256.jpg)
+
+## 单实例bean的创建流程
+
+按下`F5`快捷键进入``doCreateBean``方法里面去看一下，如下图所示，可以看到会用``BeanWrapper``接口来接收创建的bean。
+
+![](http://120.77.237.175:9080/photos/springanno/257.jpg)
+
+继续按下`F6`快捷键让程序往下运行，直至运行到下面这行代码处为止，可以看到这儿调用的是一个叫`createBeanInstance`的方法，顾名思义，它是来创建`bean`实例的。
+
+![](http://120.77.237.175:9080/photos/springanno/258.jpg)
+
+也就是说，创建`bean`的流程的第一步就是先来创建`bean`实例。
+
+### 创建bean实例
+
+当执行完`createBeanInstance`方法之后，`bean`的对象就创建出来了。那么`bean`实例的创建流程又是怎样的呢？按下`F5`快捷键进入`createBeanInstance`方法里面去看一下，如下图所示，可以看到一开始就要来解析一下要创建的`bean`的类型。
+
+![](http://120.77.237.175:9080/photos/springanno/260.jpg)
+
+于是，继续按下`F6`快捷键让程序往下运行，由于解析出来的类型为null，所以程序并不会进入到下面的`if`判断语句中，而是来到了下面这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/259.jpg)
+
+首先，在`if`判断语句中的条件表达式中，可以看到调用了`bean`定义信息对象的一个`getFactoryMethodName`方法，该方法是来获取工厂方法的名字的。不妨`Inspect`一下`mbd.getFactoryMethodName()`表达式的值，发现其值就是`car`，如下图所示。
+![](http://120.77.237.175:9080/photos/springanno/261.jpg)
+
+为什么叫工厂方法呢？还记得自定义编写的`Car`对象是如何注册到`IOC`容器中的吗？如下图所示，使用标注了`@Bean`注解的`car`方法来创建`Blue`对象并将其注册到`IOC`容器中的
+
+```java
+@ComponentScan("com.anno.ext")
+@Configuration
+public class ExtConfig {
+
+    @Bean
+    public Car car() {
+        return new Car();
+    }
+}
+```
+
+也就是说，以上`car`方法就相当于`Car`对象的工厂方法。
+
+还是回到`Spring`的源码中来，现在程序是停留在了`if`判断语句块内，不难猜测此时就是来执行`Car`对象的工厂方法（即`car`方法）来创建`Car`对象的。按下F5快捷键进入`instantiateUsingFactoryMethod`方法里面去看一下，如下图所示
+
+```java
+	protected BeanWrapper instantiateUsingFactoryMethod(
+			String beanName, RootBeanDefinition mbd, @Nullable Object[] explicitArgs) {
+
+		return new ConstructorResolver(this).instantiateUsingFactoryMethod(beanName, mbd, explicitArgs);
+	}
+```
+
+直接按下`F6`快捷键继续让程序往下运行，运行一步，发现程序来到了ExtConfig配置类的blue方法中，如下图所示。
