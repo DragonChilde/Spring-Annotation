@@ -7312,4 +7312,33 @@ public class ExtConfig {
 	}
 ```
 
-直接按下`F6`快捷键继续让程序往下运行，运行一步，发现程序来到了ExtConfig配置类的blue方法中，如下图所示。
+直接按下`F6`快捷键继续让程序往下运行，运行一步，发现程序来到了ExtConfig配置类的car方法中，如下图所示。
+
+```java
+    @Bean
+    public Car car() {
+        return new Car();
+    }
+```
+
+继续让程序往下运行，这时可以从控制台中看到打印了如下内容，即调用了Car类的无参构造器创建出了Car对象
+
+```
+car construct .....
+```
+
+是不是可以这样说呢？这儿就是利用工厂方法或对象的构造器创建出`bean`实例呢？当这个`bean`实例（也即`Car`对象）创建出来以后，继续按下`F6`快捷键让程序往下运行，直至运行到下面这行代码处为止。
+
+```java
+instanceWrapper = createBeanInstance(beanName, mbd, args);
+```
+
+这时，以上`createBeanInstance`方法就算是执行完了，也就是说，创建出了`bean`实例（即`Car`对象）。
+
+最后，让程序继续往下运行，直至运行到下面这行代码处为止，从这行代码上面的注释中，可以看到这块允许后置处理器来修改咱们这个`bean`的定义信息。
+
+![](http://120.77.237.175:9080/photos/springanno/262.jpg)
+
+很明显，`bean`实例创建完了以后，接下来就得来调用这个`applyMergedBeanDefinitionPostProcessors`方法了。
+
+### 遍历获取到的所有后置处理器，若是`MergedBeanDefinitionPostProcessor`这种类型，则调用其postProcessMergedBeanDefinition方法
