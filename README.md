@@ -7342,3 +7342,421 @@ instanceWrapper = createBeanInstance(beanName, mbd, args);
 很明显，`bean`实例创建完了以后，接下来就得来调用这个`applyMergedBeanDefinitionPostProcessors`方法了。
 
 ### 遍历获取到的所有后置处理器，若是`MergedBeanDefinitionPostProcessor`这种类型，则调用其postProcessMergedBeanDefinition方法
+
+首先，按下`F6`快捷键让程序继续往下运行，直至运行到下面这行代码处为止，可以看到这儿调用了一个applyMergedBeanDefinitionPostProcessors方法。
+
+![](http://120.77.237.175:9080/photos/springanno/263.jpg)
+
+直接点击该方法进去它里面看一下，如下图所示，可以看到先是来获取到所有的后置处理器，然后再来遍历它们，如果是`MergedBeanDefinitionPostProcessor`这种类型的，那么就调用其`postProcessMergedBeanDefinition`方法。
+
+```java
+	protected void applyMergedBeanDefinitionPostProcessors(RootBeanDefinition mbd, Class<?> beanType, String beanName) {
+		for (BeanPostProcessor bp : getBeanPostProcessors()) {
+			if (bp instanceof MergedBeanDefinitionPostProcessor) {
+				MergedBeanDefinitionPostProcessor bdp = (MergedBeanDefinitionPostProcessor) bp;
+				bdp.postProcessMergedBeanDefinition(mbd, beanType, beanName);
+			}
+		}
+	}
+```
+
+从这儿也能看到，每一个后置处理器（或者说它里面的方法）的执行时机都是不一样的，比如在上一讲中所讲述的`InstantiationAwareBeanPostProcessor`这种类型的后置处理器中的两个方法的执行时机是在创建`bean`实例之前，而现在`MergedBeanDefinitionPostProcessor`这种类型的后置处理器，是在创建完`bean`实例以后，来执行它里面的`postProcessMergedBeanDefinition`方法的。
+
+于是，让程序继续往下运行，直至运行到下面这行代码处为止，很明显，`populateBean`方法是来为`bean`的属性赋值的
+
+![](http://120.77.237.175:9080/photos/springanno/264.jpg)
+
+也就是说，创建完`bean`实例以后，首先就是来为`bean`实例的属性赋值。
+
+### 为bean实例的属性赋值
+
+程序现在依然还在`doCreateBean`方法内运行！在该方法内，首先会创建出`bean`实例，然后再执行`MergedBeanDefinitionPostProcessor`这种类型的后置处理器，接着，创建完`bean`实例之后就得为其属性赋值了。按下`F5`快捷键进入`populateBean`方法里面去看一下，如下图所示
+
+![](http://120.77.237.175:9080/photos/springanno/265.jpg)
+
+首先`bw`默认不为`null`如上图所示,直接跳过if判断可以看到，接下来会遍历获取到的所有后置处理器，如果是`InstantiationAwareBeanPostProcessor`这种类型的，那么就调用其`postProcessAfterInstantiation`方法。
+
+#### 再来遍历获取到的所有后继续按下F6快捷键让程序往下运行，直至遍历完所有的后置处理器，在这一过程中，如果遍历出的后置处理器是`InstantiationAwareBeanPostProcessor`这种类型，那么就会调用其`postProcessAfterInstantiation`方法。
+
+续让程序往下运行，你会发现程序并没有进入到`if`判断语句中，而是来到了下面这行代码处。
+
+```java
+PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
+```
+
+如果有值就拿到赋给所有属性的属性值,否则为null
+
+![](http://120.77.237.175:9080/photos/springanno/266.jpg)
+
+继续让程序往下运行，你会发现程序并没有进入到上面`if`判断语句中，而是来到`hasInstantiationAwareBeanPostProcessors()`。它是来判断是否有`InstantiationAwareBeanPostProcessor`这种类型的后置处理器的。
+
+继续让程序往下运行，会发现程序进入到了下面的`if`判断语句中，来到了下面这行代码处，这说明是有`InstantiationAwareBeanPostProcessor`这种类型的后置处理器的。
+
+接着，继续让程序往下运行，很显然程序会再进入到下面的`if`判断语句中，因为确实是有`InstantiationAwareBeanPostProcessor`这种类型的后置处理器。
+
+![](http://120.77.237.175:9080/photos/springanno/267.jpg)
+
+其实，就是遍历获取到的所有后置处理器，如果是`InstantiationAwareBeanPostProcessor`这种类型的，那么就调用其`postProcessPropertyValues`方法。
+
+即使是执行了`InstantiationAwareBeanPostProcessor`这种类型的后置处理器中的`postProcessAfterInstantiation`和`postProcessPropertyValues`这俩方法，`bean`实例的属性依然还没有被赋值。不妨让程序继续往下运行，直至遍历完所有的后置处理器。在这一过程中，如果遍历出的后置处理器是`InstantiationAwareBeanPostProcessor`这种类型，那么就会调用其`postProcessPropertyValues`方法。
+
+唉可以点进去`InstantiationAwareBeanPostProcessor`接口里面看一看它的源码哟，如下图所示，可以看到它里面定义了一个`postProcessPropertyValues`方法，该方法会返回一个`PropertyValues`对象，它就是`bean`实例属性要被赋予的属性值，最终这些属性值会被赋值给`bean`的属性
+
+```java
+	@Deprecated
+	@Nullable
+	default PropertyValues postProcessPropertyValues(
+			PropertyValues pvs, PropertyDescriptor[] pds, Object bean, String beanName) throws BeansException {
+
+		return pvs;
+	}
+```
+
+> 注意,注解显示以上方法已经在Spring5.1开始废弃,详细看`postProcessProperties(PropertyValues, Object, String)`
+
+`Spring`获取`bean`的实例时，需要把配置的属性值解析到`PropertyValues`中，然后再填充入`BeanWrapper`。
+
+当程序运行到下面这行代码处时，你会发现这儿调用了一个`applyPropertyValues`方法，这里才是正式开始为`bean`的属性赋值。
+
+![](http://120.77.237.175:9080/photos/springanno/268.jpg)
+
+#### 正式开始为bean的属性赋值
+
+现在调用`applyPropertyValues`方法才是开始为`bean`的属性赋值，在为`bean`的属性赋值之前，会执行`InstantiationAwareBeanPostProcessor`这种类型的后置处理器中的`postProcessAfterInstantiation`和`postProcessPropertyValues`这俩方法。
+
+其实，为`bean`的属性赋值，说到底就是利用`setter`方法为`bean`的属性进行赋值。这里，就不再进入`applyPropertyValues`方法去一探究竟了，它里面无非就是利用反射调`setter`方法之类的。
+
+接下来，继续让程序往下运行，直至运行到下面这行代码处为止，此时，`populateBean`方法就执行完了，也就是说，已经为`bean`的属性赋完值了。接着继续让程序往下运行，运行一步即可，这时程序来到了下面这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/269.jpg)
+
+可以看到，这儿调用了一个`initializeBean`方法，之前就已经研究过它了，它就是来初始化`bean`的
+
+### 初始化bean
+
+1. 在创建`bean`实例之前，会执行`InstantiationAwareBeanPostProcessor`这种类型的后置处理器中的两个方法，即`postProcessBeforeInstantiation`方法和`postProcessAfterInitialization`方法
+2. 创建`bean`实例
+3. 为`bean`实例的属性赋值。在赋值的过程中，会依次执行`InstantiationAwareBeanPostProcessor`这种类型的后置处理器中的两个方法，即`postProcessAfterInstantiation`方法和`postProcessPropertyValues`方法
+4. 初始化`bean`
+
+按下`F5`快捷键进入`initializeBean`方法中去一探究竟，如下图所示
+
+![](http://120.77.237.175:9080/photos/springanno/270.jpg)
+
+这儿调用了一个`invokeAwareMethods`方法，顾名思义，它是来执行`XxxAware`接口中的方法的。
+
+#### 执行`xxxAware`接口的方法
+
+对于`XxxAware`接口，之前曾经编写过这样一个`Dog`组件，如下所示，在该组件里面如果想要用`IOC`容器，那么就得让其实现`ApplicationContextAware`接口，这样，`Spring`就会在`setApplicationContext`方法中把`IOC`容器给传过来。
+
+```java
+@Component
+public class Dog implements ApplicationContextAware {
+
+    private ApplicationContext applicationContext;
+
+    public Dog() {
+        System.out.println("dog .... construct");
+    }
+
+    //对象创建并赋值之后调用
+    @PostConstruct
+    public void init()
+    {
+        System.out.println("dog....@PostConstruct");
+    }
+
+    //容器移除对象之前
+    @PreDestroy
+    public void destroy()
+    {
+        System.out.println("dog.... @PreDestroy");
+    }
+
+
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        //容器初如化,将applicationContext传进来,那么其它方法就可使用到IOC容器了
+        //这个功能是ApplicationContextAware做的
+        this.applicationContext = applicationContext;
+    }
+}
+
+```
+
+那么，在`invokeAwareMethods`方法中是怎么来执行`XxxAware`接口的方法的呢？按下`F5`快捷键进入该方法里面去看一下，如下图所示。
+
+```java
+	private void invokeAwareMethods(final String beanName, final Object bean) {
+		if (bean instanceof Aware) {
+			if (bean instanceof BeanNameAware) {
+				((BeanNameAware) bean).setBeanName(beanName);
+			}
+			if (bean instanceof BeanClassLoaderAware) {
+				ClassLoader bcl = getBeanClassLoader();
+				if (bcl != null) {
+					((BeanClassLoaderAware) bean).setBeanClassLoader(bcl);
+				}
+			}
+			if (bean instanceof BeanFactoryAware) {
+				((BeanFactoryAware) bean).setBeanFactory(AbstractAutowireCapableBeanFactory.this);
+			}
+		}
+	}
+```
+
+可以看到，它就是来判断`bean`是不是实现了`BeanNameAware`、`BeanClassLoaderAware`、`BeanFactoryAware`这些`Aware`接口的，若是则回调接口中对应的方法。
+
+当然了，现在的bean（即`Car`对象）是没有实现以上这些`Aware`接口的，所以，我们直接让程序继续往下运行，直至运行到下面这行代码处为止。
+
+![](http://120.77.237.175:9080/photos/springanno/271.jpg)
+
+#### 执行后置处理器初始化之前的方法（即`postProcessBeforeInitialization`方法）
+
+执行完`XxxAware`接口中的方法之后，可以看到会再来调用一个`applyBeanPostProcessorsBeforeInitialization`方法，该方法之前也研究过，按下F5快捷键进入该方法里面去看一下，如下图所示。
+
+```java
+	@Override
+	public Object applyBeanPostProcessorsBeforeInitialization(Object existingBean, String beanName)
+			throws BeansException {
+
+		Object result = existingBean;
+		for (BeanPostProcessor processor : getBeanPostProcessors()) {
+			Object current = processor.postProcessBeforeInitialization(result, beanName);
+			if (current == null) {
+				return result;
+			}
+			result = current;
+		}
+		return result;
+	}
+```
+
+可以看到，在`applyBeanPostProcessorsBeforeInitialization`方法中，会遍历所有的后置处理器，然后依次执行所有后置处理器的`postProcessBeforeInitialization`方法，一旦后置处理器的`postProcessBeforeInitialization`方法返回了`null`以后，则后面的后置处理器便不再执行了，而是直接退出`for`循环。
+
+然后，让程序继续往下运行，一直运行到下面这行代码处为止。
+![](http://120.77.237.175:9080/photos/springanno/272.jpg)
+
+#### 执行初始化方法
+
+执行完后置处理器的`postProcessBeforeInitialization`方法之后，可以看到现在又调用了一个`invokeInitMethods`方法，其作用就是执行初始化方法。
+
+初始化方法究竟是指哪些方法呢？包括了一个实现`InitializingBean`接口的方法,之前曾经编写过如下所示这样一个`Cat`组件
+
+```java
+@Component
+public class Cat implements InitializingBean, DisposableBean {
+    public Cat() {
+        System.out.println("cat .... construct ....");
+    }
+
+    public void destroy() throws Exception {
+        System.out.println("cat .... destroy");
+    }
+
+    public void afterPropertiesSet() throws Exception {
+        System.out.println("cat .... afterPropertiesSet");
+    }
+
+
+}
+```
+
+可以看到，以上`Cat`组件实现了一个`InitializingBean`接口，而该接口中定义了一个`afterPropertiesSet`方法，必然在`Cat`组件内就会实现该方法，这样，该方法就是`Cat`组件的初始化方法了。
+
+除了通过以上方式来指定初始化方法之外，还可以在`@Bean`注解中使用`initMehod`属性来指定初始化方法，就像下面这样
+
+```java
+@ComponentScan("com.anno.bean")
+@Configuration
+public class MyConfigLifeCycle {
+
+    //@Scope("prototype")
+    @Bean(initMethod = "init",destroyMethod = "destroy")
+    public Car car()
+    {
+        return new Car();
+    }
+}
+
+```
+
+以上配置类的代码中可以看出，指定了`Car`对象中的`init`方法为初始化方法，`destroy`方法为销毁方法，而`Car`类的代码如下所示
+
+```java
+@Component
+public class Car {
+
+    public Car() {
+        System.out.println("car construct .....");
+    }
+
+    public void init()
+    {
+        System.out.println("car init.....");
+    }
+
+    public void destroy()
+    {
+        System.out.println("car destory.....");
+    }
+}
+
+```
+
+来看一下究竟是如何来执行初始化方法的。于是，我们按下`F5`快捷键进入`invokeInitMethods`方法里面去看一下，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/273.jpg)
+
+可以看到，一开始就会来判断的`bean`是否是`InitializingBean`接口的实现，若是则执行该接口中定义的初始化方法。
+
+如果不是的继续让程序往下运行，可以发现程序并没有进入到下面的`if`判断语句中，而是来到了下面这行代码处，这是因为当前`bean`并没有实现`InitializingBean`接口。
+![](http://120.77.237.175:9080/photos/springanno/274.jpg)
+
+这时，是来看`bean`是否自定义了初始化方法，如果是的话，那么就来执行初始化方法。
+
+但是，现在当前的`bean`是没有自定义初始化方法的，因此在程序继续往下运行的过程中，程序并不会进入到下面的`if`判断语句中，而是来到了下面这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/275.jpg)
+
+此时，`invokeInitMethods`方法便执行完了
+
+#### 执行后置处理器初始化之后的方法（即`postProcessAfterInitialization`方法）
+
+初始化方法执行完了以后，下一步就是来调用`applyBeanPostProcessorsAfterInitialization`方法
+
+![](http://120.77.237.175:9080/photos/springanno/276.jpg)
+
+按下`F5`快捷键进入该方法里面去看一下，如下图所示。
+
+```java
+	@Override
+	public Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName)
+			throws BeansException {
+
+		Object result = existingBean;
+		for (BeanPostProcessor processor : getBeanPostProcessors()) {
+			Object current = processor.postProcessAfterInitialization(result, beanName);
+			if (current == null) {
+				return result;
+			}
+			result = current;
+		}
+		return result;
+	}
+```
+
+可以看到，在`applyBeanPostProcessorsAfterInitialization`方法中，会遍历所有的后置处理器，然后依次执行所有后置处理器的``postProcessAfterInitialization``方法，一旦后置处理器的`postProcessAfterInitialization`方法返回了`null`以后，则后面的后置处理器便不再执行了，而是直接退出`for`循环。
+
+然后，让程序继续往下运行，一直运行到下面这行代码处为止，可以看到我们的bean已经初始化完了。
+![](http://120.77.237.175:9080/photos/springanno/277.jpg)
+
+以上就是`bean`的整个初始化逻辑。
+
+`bean`初始化完了以后，继续让程序往下运行，直至运行到下面这行代码处为止，很显然，这儿是来获取单实例`bean`的，因为单实例`bean`都已经创建好了。
+
+![](http://120.77.237.175:9080/photos/springanno/278.jpg)
+
+这里确实是来获取单实例`bean`的，只不过是先从缓存中来获取，但缓存中还没有`bean`呢。`Inspect`了一下`bean`变量的值，如下图所示，发现`bean`确实是已经创建好了。
+
+![](http://120.77.237.175:9080/photos/springanno/279.jpg)
+
+好吧，从缓存中获取不到就获取不到吧，让程序继续往下运行，很显然程序是不会进入到下面的if判断语句中的，而是来到了这行代码处。
+
+![](http://120.77.237.175:9080/photos/springanno/280.jpg)
+
+### 注册`bean`的销毁方法
+
+`registerDisposableBeanIfNecessary`方法是来注册`bean`的销毁方法的。注意，这里只是注册而不是调用
+
+销毁方法是在`IOC`容器关闭以后才被调用的。上面的那个`Cat`组件就实现了一个`DisposableBean`接口，因此该组件里面的`destroy`方法就是销毁方法，它会在容器关闭的时候进行调用。
+
+按下F5快捷键进入`registerDisposableBeanIfNecessary`方法里面去看一下，如下图所示，看一下而已，没必要深究，因为这一块呢，只是提前把bean的销毁方法注册了一下。
+
+```java
+	protected void registerDisposableBeanIfNecessary(String beanName, Object bean, RootBeanDefinition mbd) {
+		AccessControlContext acc = (System.getSecurityManager() != null ? getAccessControlContext() : null);
+		if (!mbd.isPrototype() && requiresDestruction(bean, mbd)) {
+			if (mbd.isSingleton()) {
+				// Register a DisposableBean implementation that performs all destruction
+				// work for the given bean: DestructionAwareBeanPostProcessors,
+				// DisposableBean interface, custom destroy method.
+				registerDisposableBean(beanName,
+						new DisposableBeanAdapter(bean, beanName, mbd, getBeanPostProcessors(), acc));
+			}
+			else {
+				// A bean with a custom scope...
+				Scope scope = this.scopes.get(mbd.getScope());
+				if (scope == null) {
+					throw new IllegalStateException("No Scope registered for scope name '" + mbd.getScope() + "'");
+				}
+				scope.registerDestructionCallback(beanName,
+						new DisposableBeanAdapter(bean, beanName, mbd, getBeanPostProcessors(), acc));
+			}
+		}
+	}
+```
+
+然后，继续让程序往下运行，直至运行到下面这行代码处为止，此时，`doCreateBean`方法就算是返回了一个`bean`实例。
+
+![](http://120.77.237.175:9080/photos/springanno/281.jpg)
+
+经过以上这么多的步骤，终于将`bean`实例创建出来了，其实，这些步骤都包含在以上`doCreateBean`方法中，总结一下。
+
+1. 在创建`bean`实例之前，会执行`InstantiationAwareBeanPostProcessor`这种类型的后置处理器中的两个方法，即`postProcessBeforeInstantiation`方法和`postProcessAfterInitialization`方法
+2. 创建`bean`实例
+3. 为`bean`实例的属性赋值。在赋值的过程中，会依次执行`InstantiationAwareBeanPostProcessor`这种类型的后置处理器中的两个方法，即`postProcessAfterInstantiation`方法和`postProcessPropertyValues`方法
+4. 初始化`bean`，而且在初始化前后会执行后置处理器中的两个方法，即`postProcessBeforeInitialization`方法和`postProcessAfterInitialization`方法
+5. 注册`bean`的销毁方法
+
+经过上面这些繁琐的步骤，`bean`就创建出来了。
+
+于是继续让程序往下运行，先运行到下面这行代码处，这时，`createBean`方法就算是彻底执行完了，而且它会返回创建好的`bean`实例
+
+![](http://120.77.237.175:9080/photos/springanno/282.jpg)
+
+然后，再运行到下面这行代码处，这时，就能获取到创建出的`bean`实例了。
+
+![](http://120.77.237.175:9080/photos/springanno/283.jpg)
+
+不妨`Inspect`一下`singletonObject`变量的值，如下图所示，发现`bean`实例（即`Car`对象）确实是被获取到了。
+
+![](http://120.77.237.175:9080/photos/springanno/284.jpg)
+
+接着，让程序运行到下面这行代码处，可以看到，这儿会调用一个`addSingleton`方法
+
+![](http://120.77.237.175:9080/photos/springanno/285.jpg)
+
+## 将创建出的单实例`bean`添加到缓存中
+
+当单实例`bean`创建出来之后，接下来就得调用一个`addSingleton`方法了，该方法的作用就是将创建的单实例`bean`添加到缓存中。按下F5快捷键进入`addSingleton`方法里面去看一下，如下图所示
+
+```java
+	protected void addSingleton(String beanName, Object singletonObject) {
+		synchronized (this.singletonObjects) {
+			this.singletonObjects.put(beanName, singletonObject);
+			this.singletonFactories.remove(beanName);
+			this.earlySingletonObjects.remove(beanName);
+			this.registeredSingletons.add(beanName);
+		}
+	}
+```
+
+`singletonObjects`是`DefaultSingletonBeanRegistry`类里面的一个属性，点它，你就能看到了，如下图所示。
+
+```java
+private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
+```
+
+可以看到`singletonObjects`属性就是一个`Map`集合，该Map集合里面缓存的就是所有的单实例`bean`，而且还是按照`bean`的名字和其实例对象缓存起来的，这可以从该属性上面的注释中看出来。
+
+将创建的单实例`bean`添加到缓存中指的不就是将创建的单实例`bean`添加到`singletonObjects`指代的`Map`集合中吗？第一次获取单实例`bean`，就是从`singletonObjects`里面来获取的
+
+将创建的单实例`bean`添加到`singletonObjects`指代的`Map`集合中，好处是以后就可以直接从这个`Map`集合里面来获取了。
+
+现在，该知道什么叫IOC容器了吧！所谓的IOC容器就是指各种各样的Map集合，而且这些Map集合有很多,如下图所示，这些`Map`集合里面保存了创建的所有组件以及`IOC`容器的其他信息。
+
+![](http://120.77.237.175:9080/photos/springanno/286.jpg)
+
+也就是说，以上所有这些`Map`集合就构成了`Spring`的`IOC`容器，容器里面保存了所有的组件。以后，从容器中来获取组件，其实就是从这些`Map`集合里面来获取组件。
+
+
