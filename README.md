@@ -7759,4 +7759,160 @@ private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256
 
 也就是说，以上所有这些`Map`集合就构成了`Spring`的`IOC`容器，容器里面保存了所有的组件。以后，从容器中来获取组件，其实就是从这些`Map`集合里面来获取组件。
 
+接下来，继续让程序往下运行，直至运行到下面这行代码处为止，至此，单实例`bean`就获取到了
 
+![](http://120.77.237.175:9080/photos/springanno/287.jpg)
+
+然后，让程序往下运行到下面这行代码处，可以看到这儿将会返回获取到的单实例`bean`
+
+![](http://120.77.237.175:9080/photos/springanno/288.jpg)
+
+接着，让程序往下运行到下面这行代码处，可以看到`getBean`方法总算是执行完了，这时，也就获取到了单实例`bean`。
+
+![](http://120.77.237.175:9080/photos/springanno/289.jpg)
+
+`bean`创建出来之后，继续让程序往下运行，可以看到接下来就是通过以下`for`循环来将所有的`bean`都创建完。
+![](http://120.77.237.175:9080/photos/springanno/290.jpg)
+
+创建流程不用我再详述一遍吧，跟单实例`bean`（即`car`对象）的创建流程是一模一样的，不停地按下F6快捷键让程序不停地往下运行，快速地过一遍就行了。
+
+当程序运行到下面这行代码处时，上面的那个`for`循环就整个地执行完了，也就是说，所有的`bean`都创建完成了。
+![](http://120.77.237.175:9080/photos/springanno/291.jpg)
+
+让程序继续往下运行，直至运行到下面这行代码处为止。
+
+![](http://120.77.237.175:9080/photos/springanno/292.jpg)
+
+可以看到，这儿是来遍历所有的`bean`，并来判断遍历出来的每一个`bean`是否实现了`SmartInitializingSingleton`接口的。对`SmartInitializingSingleton`接口还有印象吗？在讲解`@EventListener`注解的内部原理时，就讲解过它
+
+所有的`bean`都利用`getBean`方法创建完成以后，接下来要做的事情就是检查所有的`bean`中是否有实现`SmartInitializingSingleton`接口的，如果有的话，那么便会来执行该接口中的`afterSingletonsInstantiated`方法。
+
+继续往下运行，当程序运行至下面这行代码处时，发现有一个`bean`实现了`SmartInitializingSingleton`接口，不然程序是不会进入到`if`判断语句中的。
+
+![](http://120.77.237.175:9080/photos/springanno/293.jpg)
+
+那么，到底是哪一个`bean`实现了`SmartInitializingSingleton`接口呢？不妨`Inspect`一下`singletonInstance`变量的值，就是`EventListenerMethodProcessor`，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/294.jpg)
+
+于是，接下来便会执行该`bean`中的`afterSingletonsInstantiated`方法，也就是`SmartInitializingSingleton`接口中定义的方法。
+
+继续让程序往下运行，直至执行完整个`for`循环，由于`IOC`容器中的`bean`还是蛮多的，所以要执行完整个`for`循环，得不停地按下`F6`快捷键。当程序运行至下面这行代码处时，发现`beanFactory.preInstantiateSingletons()`这行代码总算是执行完了。
+
+![](http://120.77.237.175:9080/photos/springanno/295.jpg)
+
+它是来初始化所有剩下的单实例bean的。
+
+接着，继续让程序往下运行，直至运行至下面这行代码处为止，此时，程序来到了`Spring IOC`容器创建的最后一步了，即完成`BeanFactory`的初始化创建工作。
+
+![](http://120.77.237.175:9080/photos/springanno/296.jpg)
+
+该方法一旦执行完，那么`Spring IOC`容器就创建完成了。接下来，就看看`finishRefresh`方法
+
+## 完成BeanFactory的初始化创建工作
+
+`finishRefresh`方法执行完，就意味着完成了`BeanFactory`的初始化创建工作，Spring IOC`容器就创建完成了。
+
+其实，`IOC`容器在前一步（即`finishBeanFactoryInitialization`(`beanFactory`)）就已经创建完成了，而且所有的单实例`bean`也都已经加载完了。
+
+那么，`finishRefresh`方法里面究竟都做了些啥事呢？不妨按下F5快捷键进入该方法里面去看一下，如下图所示，
+
+```java
+	protected void finishRefresh() {
+		// Clear context-level resource caches (such as ASM metadata from scanning).
+		clearResourceCaches();
+
+		// Initialize lifecycle processor for this context.
+		initLifecycleProcessor();
+
+		// Propagate refresh to lifecycle processor first.
+		getLifecycleProcessor().onRefresh();
+
+		// Publish the final event.
+		publishEvent(new ContextRefreshedEvent(this));
+
+		// Participate in LiveBeansView MBean, if active.
+		LiveBeansView.registerApplicationContext(this);
+	}
+```
+
+### 初始化和生命周期有关的后置处理器
+
+可以看到`finishRefresh`方法里面首先会调用一个`initLifecycleProcessor`方法，该方法是来初始化和生命周期有关的后置处理器的。不妨按下`F5`快捷键进入该方法里面去看一下，如下图所示。
+
+```java
+	protected void initLifecycleProcessor() {
+		ConfigurableListableBeanFactory beanFactory = getBeanFactory();
+		if (beanFactory.containsLocalBean(LIFECYCLE_PROCESSOR_BEAN_NAME)) {
+			this.lifecycleProcessor =
+					beanFactory.getBean(LIFECYCLE_PROCESSOR_BEAN_NAME, LifecycleProcessor.class);
+			if (logger.isTraceEnabled()) {
+				logger.trace("Using LifecycleProcessor [" + this.lifecycleProcessor + "]");
+			}
+		}
+		else {
+			DefaultLifecycleProcessor defaultProcessor = new DefaultLifecycleProcessor();
+			defaultProcessor.setBeanFactory(beanFactory);
+			this.lifecycleProcessor = defaultProcessor;
+			beanFactory.registerSingleton(LIFECYCLE_PROCESSOR_BEAN_NAME, this.lifecycleProcessor);
+			if (logger.isTraceEnabled()) {
+				logger.trace("No '" + LIFECYCLE_PROCESSOR_BEAN_NAME + "' bean, using " +
+						"[" + this.lifecycleProcessor.getClass().getSimpleName() + "]");
+			}
+		}
+	}
+```
+
+#### 获取BeanFactory
+
+从上图中可以知道，在`initLifecycleProcessor`方法里面一开始就是来获取·BeanFactory·的，而这个·BeanFactory·，之前早就准备好了。
+
+#### 看容器中是否有·id·为·lifecycleProcessor·，类型是·LifecycleProcessor·的组件
+
+按下F6快捷键让程序继续往下运行，会发现有一个判断，即判断`BeanFactory`中是否有一个`id`为`lifecycleProcessor`的组件。为什么会这么说呢，只要看一下常量`LIFECYCLE_PROCESSOR_BEAN_NAME`的值就知道了，如下图所示，该常量的值就是`lifecycleProcessor`。
+
+![](http://120.77.237.175:9080/photos/springanno/297.jpg)
+
+##### 若有，则赋值给`this.lifecycleProcessor`
+
+如果有的话，那么会从`BeanFactory`中获取到`id`为`lifecycleProcessor`，类型是`LifecycleProcessor`的组件，并将其赋值给`this.lifecycleProcessor`。这可以从下面这行代码看出。
+
+![](http://120.77.237.175:9080/photos/springanno/298.jpg)
+
+不难发现，首先默认会从`BeanFactory`中寻找`LifecycleProcessor`这种类型的组件，即生命周期组件。由于是初次与`LifecycleProcessor`见面，可以点过去看一看它的源码，如下图所示，发现它是一个接口。
+
+```java
+public interface LifecycleProcessor extends Lifecycle {
+
+	/**
+	 * Notification of context refresh, e.g. for auto-starting components.
+	 */
+	void onRefresh();
+
+	/**
+	 * Notification of context close phase, e.g. for auto-stopping components.
+	 */
+	void onClose();
+
+}
+```
+
+而且，可以看到该接口中还定义了两个方法，一个是`onRefresh`方法，一个是`onClose`方法，它俩能够在BeanFactory的生命周期期间进行回调
+
+如此一来，就可以自己来编写`LifecycleProcessor`接口的一个实现类了，该实现类的作用就是可以在`BeanFactory`的生命周期期间进行拦截，即在`BeanFactory`刷新完成以及关闭的时候，回调其里面的`onRefresh`和`onClose`这俩方法。
+
+当程序继续往下运行时，很显然，它并不会进入到`if`判断语句中，而是来到了下面的`else`分支语句中，这是因为容器在刚开始创建的时候，肯定是还没有生命周期组件的。
+
+##### 若没有，则创建一个`DefaultLifecycleProcessor`类型的组件，并把创建好的组件注册在容器中
+
+如果没有的话，那么`Spring`自己会创建一个`DefaultLifecycleProcessor`类型的对象，即默认的生命周期组件。
+
+然后，把创建好的`DefaultLifecycleProcessor`类型的组件注册到容器中，所执行的是下面这行代码。
+
+![](http://120.77.237.175:9080/photos/springanno/299.jpg)
+
+也就是说，容器中会有一个默认的生命周期组件。这样，以后其他组件想要使用生命周期组件，直接自动注入这个生命周期组件即可。
+
+所有`Spring`创建的组件，基本上都是这个逻辑，它把组件创建过来以后，就会添加到容器中，这样就能方便我们程序员来使用了。
+
+最后，让程序继续往下运行，直至运行到下面这行代码处为止。
