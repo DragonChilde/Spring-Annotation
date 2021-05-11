@@ -7913,6 +7913,62 @@ public interface LifecycleProcessor extends Lifecycle {
 
 也就是说，容器中会有一个默认的生命周期组件。这样，以后其他组件想要使用生命周期组件，直接自动注入这个生命周期组件即可。
 
-所有`Spring`创建的组件，基本上都是这个逻辑，它把组件创建过来以后，就会添加到容器中，这样就能方便我们程序员来使用了。
+所有`Spring`创建的组件，基本上都是这个逻辑，它把组件创建过来以后，就会添加到容器中，这样就能方便使用了。
 
 最后，让程序继续往下运行，直至运行到下面这行代码处为止。
+
+![](http://120.77.237.175:9080/photos/springanno/300.jpg)
+
+### 回调生命周期处理器的`onRefresh`方法
+
+从上图中可以看到，当程序运行到`getLifecycleProcessor().onRefresh();`这行代码处时，会先拿到前面定义的生命周期处理器（即监听`BeanFactory`生命周期的处理器），然后再回调其`onRefresh`方法，也就是容器刷新完成的方法。
+
+### 发布容器刷新完成事件
+
+让程序继续往下运行，运行一步即可，这时，程序来到了下面这行代码处
+
+```java
+// Publish the final event.
+publishEvent(new ContextRefreshedEvent(this));
+```
+
+很明显，这儿是来发布容器刷新完成事件的。如何来发布容器刷新完成事件，在上面的 **`ApplicationListener`的原理----容器刷新完成，发布ContextRefreshedEvent事件**已经有介绍过过了,可以往上查找
+
+接着，继续让程序往下运行，运行一步即可，这时，程序来到了下面这行代码处
+
+```java
+// Participate in LiveBeansView MBean, if active.
+LiveBeansView.registerApplicationContext(this);
+```
+
+这是`finishRefresh`方法里面的最后一步了，暴露一些MBean的之类的,直接略过,不关心。
+
+## Spring IOC容器创建源码总结
+
+Spring IOC容器在启动的时候，会先保存所有注册进来的`bean`的定义信息，将来，`BeanFactory`就会按照这些`bean`的定义信息来创建对象。
+
+那么，如何来编写这些`bean`的定义信息呢？你可以有如下两种方式来编写这些`bean`的定义信息。
+
+使用`XML`配置文件的方式来注册`bean`。其实，这种方式说到底无非就是使用`<bean>`标签来向`IOC`容器中注册一个`bea`n的定义信息
+使用`@Service`、`@Component`、`@Bean`等等注解来注册`bean`。其实，这种方式就是使用注解向`IOC`容器中注册一个`bean`的定义信息
+要掌握的第二个核心思想就是，当`IOC`容器中有保存一些`bean`的定义信息的时候，它便会在合适的时机来创建这些`bea`n，而且主要有两个合适的时机，分别如下：
+
+就是在用到某个`bean`的时候。在统一创建所有剩下的单实例`bean`之前，有一些`bean`，比如像后置处理器啦等等这些组件，需要用到它的时候，都会利用`getBean`方法创建出来，创建好以后便会保存在容器中，以后就可以直接从容器中获取了
+
+统一创建所有剩下的单实例`bean`的时候。这不就是在跟踪`Spring IOC`容器创建过程的源码时所分析的一个步骤嘛，即`finishBeanFactoryInitialization(beanFactory)`，这一步便是来初始化所有剩下的单实例`bean`的。
+
+也就是说，所有`IOC`容器中注册的单实例`bean`，如果还没创建对象，那么就在这个时机创建出来。
+
+当然了，在整个单实例`bean`创建的过程中，最核心的一个思想就是`BeanPostProcessor`（即后置处理器）。
+
+每一个单实例`bean`在创建完成以后，都会使用各种各样的后置处理器进行处理，以此来增强这个`bean`的功能。举一个例子，使用`@Autowired`注解即可完成自动注入，这是因为`Spring`中有一个专门来处理`@Autowired`注解的后置处理器，即`AutowiredAnnotationBeanPostProcessor`。
+
+在讲述Spring AOP底层原理时，有一个叫`AnnotationAwareAspectJAutoProxyCreator`的后置处理器吗？它的作用就是来为`bean`来创建代理对象的，通过代理对象来增强这个`bean`的`AOP`功能。
+
+这里只举了以上两个后置处理器为例子，但是，在`Spring`中其实是有非常多的后置处理器的，它们一般都是在`bean`初始化前后进行逻辑增强的。可以看到`Spring`中的后置处理器是多么的重要
+
+最后，掌握的第四个核心思想就是，`Spring`的事件驱动模型。它涉及到了两个元素，分别如下：
+
+`ApplicationListener`：它是用来做事件监听
+ApplicationEventMulticaster`：事件派发器。它就是来进行事件派发的
+以上就是Spring源码中的一些比较核心的思想。最重要的是需要理解与掌握后置处理器，因为`Spring`都是利用各种各样的后置处理器来对`bean`进行增强处理的。除此之外，还得理解`Spring`中的事件驱动模型。
