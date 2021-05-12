@@ -7972,3 +7972,303 @@ Spring IOC容器在启动的时候，会先保存所有注册进来的`bean`的�
 `ApplicationListener`：它是用来做事件监听
 ApplicationEventMulticaster`：事件派发器。它就是来进行事件派发的
 以上就是Spring源码中的一些比较核心的思想。最重要的是需要理解与掌握后置处理器，因为`Spring`都是利用各种各样的后置处理器来对`bean`进行增强处理的。除此之外，还得理解`Spring`中的事件驱动模型。
+
+# 关于Servlet3.0
+
+> Servlet 3.0标准是需要`Tomcat 7.0.x`及以上版本的服务器来支持的,而且Servlet 3.0是属于JSR 315系列中的规范
+
+1. 创建一个JAVA EE WEB工程
+
+2. 创建`HelloServlet`
+
+   ```java
+   @WebServlet("/hello")
+   public class HelloServlet extends HttpServlet {
+   
+       @Override
+       protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+           // super.doGet(req, resp);
+           resp.getWriter().write("hello....");
+       }
+   }
+   ```
+
+   如果是以前的话，需要将以上编写好的Servlet配置在web.xml文中，例如配置一下其拦截路径等等。而现在只需要使用一个简单的注解就行了，即`@WebServlet`。并且，还可以在该注解中配置要拦截哪些路径，例如@WebServlet("/hello")，这样就会拦截一个hello请求了。
+
+   在以上`HelloServlet`标注上一个`@WebServlet("/hello")`注解之后，只要`hello`请求发过来，那么就会来到这个`HelloServlet`，并调用其`doGet`方法来进行处理。
+
+   紧接着，我们就要运行项目进行测试了。项目成功启动后，咱们在浏览器地址栏中输入http://localhost:8080/servlet3/hello进行访问，成功显示
+
+   关于Servlet3.0的规范,可以上https://jcp.org/aboutJava/communityprocess/mrel/jsr315/index.html上载文档
+
+## ServletContainerInitializer
+
+### Shared libraries（共享库）/ runtimes pluggability（运行时插件能力）
+
+`container`（即`Servlet`容器，比如`Tomcat`服务器之类的）在启动应用的时候，它会来扫描`jar`包里面的`ServletContainerInitializer`的实现类。
+
+当`Servlet`容器启动应用时，它会扫描当前应用中每一个`jar`里面的`ServletContainerInitializer`的实现类。那究竟是一个怎么扫描法呢？文档里说，得提供`ServletContainerInitializer`的一个实现类，提供完这个实现类之后还不行，还必须得把它绑定在`META-INF/services/`目录下面的名字叫`javax.servlet.ServletContainerInitializer`的文件里面。
+
+也就是说，必须将提供的实现类绑定在`META-INF/services/javax.servlet.ServletContainerInitializer`文件中，所谓的绑定就是在`javax.servlet.ServletContainerInitializer`文件里面写上`ServletContainerInitializer`实现类的全类名，也就是说，`javax.servlet.ServletContainerInitializer`文件中的内容就是咱们提供的`ServletContainerInitializer`实现类的全类名。
+
+总结一下就是，`Servlet`容器在启动应用的时候，会扫描当前应用每一个`jar`包里面的`META-INF/services/javax.servlet.ServletContainerInitializer`文件中指定的实现类，然后，再运行该实现类中的方法。
+
+首先，编写一个类，例如`MyServletContainerInitializer`，来实现`ServletContainerInitializer`接口。
+
+```java
+public class MyServletContainerInitializer implements ServletContainerInitializer {
+
+    @Override
+    public void onStartup(Set<Class<?>> set, ServletContext servletContext) throws ServletException {
+
+    }
+}
+```
+
+然后，按照`Servlet 3.0`标准规范文档中所说的，将以上类的全类名配置在`META-INF/services`目录下的`javax.servlet.ServletContainerInitializer`文件中。在当前项目的 类路径（即`src`目录） 下把`META-INF/services`这个目录给创建出来，接着在该目录下创建一个名字为`javax.servlet.ServletContainerInitializer`的文件。
+
+将自定义编写的 `MyServletContainerInitializer`类的全类名配置在`javax.servlet.ServletContainerInitializer`文件，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/301.jpg)
+
+这样的话，`Servlet`容器在应用一启动的时候，就会找到以上这个实现类，并来运行它其中的方法。
+
+那么运行该实现类的什么方法呢？发现`MyServletContainerInitializer`实现类中就只有一个叫`onStartup`的方法，因此`Servlet`容器在应用一启动的时候，就会运行该实现类中的`onStartup`方法。
+
+而且，还可以看到该方法里面有两个参数，其中一个参数是`ServletContext`对象，它就是用来代表当前`web`应用的，一个`web`应用就对应着一个`ServletContext`对象。此外，它也是四大域对象之一，我们给它里面存个东西，只要应用在不关闭之前，都可以在任何位置获取到。
+
+说完其中一个参数，着重来说第二个参数，即`Set<Class<?>> arg0`，它又是什么呢？可以参照`Servlet 3.0`标准规范文档中的下面第三段描述，描述说，可以在`ServletContainerInitializer`的实现类上使用一个`@HandlesTypes`注解，而且在该注解里面可以写上一个类型数组哟，也就是说可以指定各种类型。
+
+那么，`@HandlesTypes`注解有什么作用呢？`Servlet`容器在启动应用的时候，会将`@HandlesTypes`注解里面指定的类型下面的子类，包括实现类或者子接口等，全部给传递过来。
+
+编写一个`HelloService`，如下所示。
+
+```java
+package com.servlet.service;
+
+/**
+ * @title: HelloService
+ * @Author Wen
+ * @Date: 2021/5/12 16:41
+ * @Version 1.0
+ */
+public interface HelloService {
+}
+
+```
+
+现在可以在自定义的的`MyServletContainerInitializer`实现类上写上这样一个`@HandlesTypes(value={HelloService.class})`注解了。
+
+```java
+@HandlesTypes(value = {HelloService.class})
+public class MyServletContainerInitializer implements ServletContainerInitializer {
+	...
+}
+```
+
+只要在`@HandlesTypes`注解里面指定上感兴趣的类型，那么`Servlet`容器在启动的时候就会自动地将该类型（即`HelloService`接口）下面的子类，包括实现类或者子接口等全部都传递过来，很显然，参数`Set<Class<?>> arg0`指的就是感兴趣的类型的所有后代类型。
+
+接着，就为以上`HelloService`接口来写上几个实现。比如，先来写一个该接口的子接口，就叫`HelloServiceExt`，如下所示。
+
+```java
+public interface HelloServiceExt extends HelloService {
+}
+```
+
+再来创建一个实现该接口的抽象类，可以叫`AbstractHelloService`
+
+```java
+public abstract class AbstractHelloService implements HelloService {
+}
+```
+
+再再来创建一个该接口的实现类，例如`HelloServiceImpl`，如下所示。
+
+```java
+public class HelloServiceImpl implements HelloService {
+}
+```
+
+现在，`HelloService`接口下面有以上这三种不同的后代类型了。如此一来，`Servlet`容器在一启动的时候，就会把感兴趣的所有类型能传递过来，可以来输出一下了。
+
+```java
+@HandlesTypes(value = {HelloService.class})
+public class MyServletContainerInitializer implements ServletContainerInitializer {
+
+    /**
+     * 应用启动的时候，会运行onStartup方法；
+     * <p>
+     * Set<Class<?>> arg0：感兴趣的类型的所有子类型；
+     * ServletContext arg1:代表当前Web应用的ServletContext；一个Web应用一个ServletContext；
+     * <p>
+     * 1）、使用ServletContext注册Web组件（Servlet、Filter、Listener）
+     * 2）、使用编码的方式，在项目启动的时候给ServletContext里面添加组件；
+     * 必须在项目启动的时候来添加；
+     * 1）、ServletContainerInitializer得到的ServletContext；
+     * 2）、ServletContextListener得到的ServletContext；
+     */
+    @Override
+    public void onStartup(Set<Class<?>> set, ServletContext servletContext) throws ServletException {
+
+        System.out.println("感兴趣的所有类型:");
+        for (Class<?> clz : set) {
+            System.out.println(clz);
+        }
+
+    }
+}
+```
+
+可以看到，目前，暂时还用不到`ServletContext`对象参数。
+
+最后，启动项目，如下图所示，确实是打印出了感兴趣的所有类型。
+
+```java
+感兴趣的所有类型:
+interface com.servlet.service.HelloServiceExt
+class com.servlet.service.AbstractHelloService
+class com.servlet.service.HelloServiceImpl
+```
+
+而且，还可以看到感兴趣的类型本身（即`HelloService`接口）没有打印之外，它下面的所有后代类型，不管是抽象类，还是子接口，还是实现类，都给打印出来了。
+
+这也验证了这一点，即`Servlet`容器在启动应用的时候，会将`@HandlesTypes`注解里面指定的类型下面的子类，包括实现类或者子接口等，全部都给传递过来。那这样有什么作用呢？只要传入了某一感兴趣的类型，就可以利用反射来创建对象了啊！
+
+以上就是基于运行时插件的`ServletContainerInitializer`机制。这个机制最重要的就是要启动`ServletContainerInitializer`的实现类，然后就能传入感兴趣的类型了，该机制有两个核心，一个是`ServletContainerInitializer`，一个是`@HandlesTypes`注解。
+
+## 使用ServletContext注册web三大组件
+
+ServletContext里面有如下这些方法。分别是
+
+- 注册`Filter`
+- 注册`Listener`
+- 注册`Servlet`
+
+![](http://120.77.237.175:9080/photos/springanno/302.jpg)
+
+有了这些方法，就可以利用它们给`ServletContext`里面注册一些组件了
+
+首先，编写一个`Servlet`，例如`UserServlet`，如下所示。
+
+```java
+public class UserServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        resp.getWriter().write("tomcat...");
+    }
+}
+```
+
+然后，再来编写一个`Filter`，例如`UserFilter`，要想成为一个`Filter`，它必须得实现`Servlet`提供的`Filter`接口。
+
+```java
+public class UserFilter implements Filter {
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+
+    }
+
+    @Override
+    public void destroy() {
+
+    }
+
+    @Override
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+
+        // 过滤请求
+        System.out.println("UserFilter...doFilter...");
+        //放行
+        filterChain.doFilter(servletRequest, servletResponse);
+    }
+}
+```
+
+接着，再来编写一个`Listener`，例如`UserListener`，要知道监听器是有很多的，所以这儿不妨让`UserListener`来实现`ServletContextListener`接口，以监听`ServletContext`的创建和启动过程。
+
+```java
+public class UserListener implements ServletContextListener {
+    // 这个方法是来监听ServletContext启动初始化的
+    @Override
+    public void contextInitialized(ServletContextEvent sce) {
+        System.out.println("UserListener...contextInitialized...");
+    }
+
+    // 这个方法是来监听ServletContext销毁的，也就是说，我们这个项目的停止
+    @Override
+    public void contextDestroyed(ServletContextEvent sce) {
+        System.out.println("UserListener...contextDestroyed...");
+    }
+}
+```
+
+以上三个`web`组件，即`Servlet`、`Filter`以及`Listener`。直接调用`ServletContext`的方法来注册这些组件了，由于项目中没有`web.xml`配置文件，直接写Java代码进行加载。
+
+### 注册`Servlet`
+
+先来注册`Servlet`，即`UserServlet`。当调用`ServletContext`对象的`addServlet`方法来注册`Servlet`时,调用哪一个`addServlet`方法来注册`UserServlet`呢？不妨调用如下第二个`addServlet`方法，在第一个参数的位置传入`UserServlet`的名字，例如`userServlet`，在第二个参数的位置传入自定义`new`的一个`UserServlet`对象。
+
+应该会返回一个`Dynamic`类型的对象，但是为了将返回类型写得更详细点，我们可以将其写成`ServletRegistration.Dynamic`，如下所示。
+
+```java
+// 注册Servlet组件
+ServletRegistration.Dynamic servlet = servletContext.addServlet("userServlet", new UserServlet());
+```
+
+至此，只是给`ServletContext`中注册了一个`UserServlet`组件。但是，该`UserServlet`的映射信息还没配置，即它是来处理什么样的请求的。返回的`ServletRegistration.Dynamic`对象有一个`addMapping`方法，调用它即可配置`UserServlet`的映射信息，如下所示。
+
+```java
+//配置Servlet的映射信息
+servlet.addMapping("/user");
+```
+
+从上可以看到，`UserServlet`现在是来处理`user`请求的。
+
+### 注册`Listener`
+
+注册`Listener`同上。调用第一个`addListener`方法，在参数位置传入`UserListener`的类型，这样就会自动帮创建出`UserListener`对象，并将其注册到`ServletContext`中了。
+
+```java
+//注册Listener
+servletContext.addListener(UserListener.class);
+```
+
+### 注册`Filter`
+
+注册`Filter`，即`UserFilter`。注册`Servlet`和`Filter`有一点特殊之处，那就是注册它俩之后都得配置其映射信息。
+
+调用如下第一个`addFilter`方法，在第一个参数的位置传入`UserFilter`的名字，例如`userFilter`，在第二个参数的位置传入`UserFilter`的类型，即`UserFilter.class`，这样，`Servlet`容器（即`Tomcat`服务器）就会创建出一个`UserFilter`对象，并将其注册到`ServletContext`中
+
+```java
+//注册Filter  FilterRegistration
+FilterRegistration.Dynamic filter = servletContext.addFilter("userFilter", UserFilter.class);
+```
+
+调用`ServletContext`对象的`addServlet`方法（即注册`Servlet`）和`addFilter`方法（即注册`Filter`），都会返回一个`Dynamic`对象，只不过一个是`ServletRegistration`里面的`Dynamic`，一个是`FilterRegistration`里面`的Dynamic`
+
+然后，需要利用返回的`FilterRegistration.Dynamic`对象中的`addMappingForXxx`方法配置`UserFilter`的映射信息。
+
+```java
+// 配置Filter的映射信息
+filter.addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), true, "/*");
+```
+
+可以看到，`addMappingForUrlPatterns`方法中传入的第一个参数还是蛮奇怪的，居然是`EnumSet.of(DispatcherType.REQUEST)`，该参数表示的是`Filter`拦截的请求类型，即通过什么方式过来的请求，Filter会进行拦截。不妨点进`DispatcherType`枚举的源码里面去看一看，如下图所示，可以看到好多的请求类型，不过常用的就应该是`FORWARD`和`REQUEST`。
+
+```java
+public enum DispatcherType {
+    FORWARD,
+    INCLUDE,
+    REQUEST,
+    ASYNC,
+    ERROR;
+
+    private DispatcherType() {
+    }
+}
+```
+
+现在`addMappingForUrlPatterns`方法中传入的第一个参数是`EnumSet.of(DispatcherType.REQUEST)`，表明写的`UserFilter`会拦截通过`request`方式发送过来的请求。
+
+该方法中的第二个参数（即`isMatchAfter`）直接传入`true`就行，第三个参数（即`urlPatterns`）就是`Filter`要拦截的路径，目前传入的是/*，即拦截所有请求。
+
