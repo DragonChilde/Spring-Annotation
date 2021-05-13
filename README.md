@@ -8272,3 +8272,92 @@ public enum DispatcherType {
 
 该方法中的第二个参数（即`isMatchAfter`）直接传入`true`就行，第三个参数（即`urlPatterns`）就是`Filter`要拦截的路径，目前传入的是/*，即拦截所有请求。
 
+### 测试
+
+现在启动项目进行测试，看上三个组件有没有起到作用。如果注册的`UserFilter`真的起到作用了，那么它就会在放行目标请求之前打印相应内容；如果注册的`UserListener`真的起到作用了，那么在其创建和销毁过程中也会有相应内容打印；如果注册的`UserServlet`真的起到作用了，那么当发送一个`user`请求后，就能在浏览器页面中看到有相应内容输出了。
+![](http://120.77.237.175:9080/photos/springanno/303.jpg)
+
+可以看到注册的`UserListener`确实起到作用了，在项目启动的时候，有相关内容输出，因为它本来就是监听项目的启动和停止的。
+
+注册的`UserFilter也起到作用了，在目标请求放行之前打印了相应内容。
+
+停止`Tomcat`服务器，此时，注册的`UserListener`会监听到项目的停止，因此监听`ServletContext`销毁的方法也会运行，控制台也会有相应内容输出，如下图所示
+
+### 总结
+
+通过编码的方式在项目启动的时候，给`ServletContext`（即当前项目）里面来注册组件。当然，并不是说，拿到了`ServletContext`对象就能注册组件了，因为必须是在项目启动的时候，才能注册组件。
+
+而且，在项目启动的时候，可以有两处来使用`ServletContext`对象注册组件。
+
+第一处就是利用基于运行时插件的`ServletContainerInitializer`机制得到`ServletContext`对象，然后再往其里面注册组件。
+
+第二处就是编写过一个监听器（即`UserListener`）,它是来监听项目的启动和停止的，在监听项目启动的方法中，传入了一个`ServletContextEvent`对象，即事件对象，就可以通过该事件对象的`getServletContext`方法拿到`ServletContext`对象，拿到之后，就可以往它里面注册组件了
+
+
+## Servlet 3.0与Spring MVC的整合分析
+
+创建一个新的maven工程，例如springmvc-annotation，注意其打包方式是war。pom文件如下:
+
+```java
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.anno</groupId>
+    <artifactId>springmvc-annotation</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>war</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>5.2.6.RELEASE</version>
+        </dependency>
+
+            <!--再来导入对servlet api的依赖，注意其版本是3.1.0，因为现在是在用Servlet 3.0以上的特性。-->
+        <!--
+        此外，还要注意<scope>provided</scope>配置哟！由于Tomcat服务器里面也有servlet api，即目标环境已经该jar包了，
+        所以在这儿将以上servlet api的scope设置成provided。这样的话，项目在被打成war包时，就不会带上该jar包了，否则就会引起jar包冲突。
+        -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>servlet-api</artifactId>
+            <version>3.0-alpha-1</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- java编译插件 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.1.0</version>
+                <!--
+                注意<configuration>标签里面的<failOnMissingWebXml>false</failOnMissingWebXml>这个配置哟，它是来告诉maven工程即使没有web.xml文件,也不要报错
+                -->
+                <configuration>
+                    <failOnMissingWebXml>false</failOnMissingWebXml>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+```
+
