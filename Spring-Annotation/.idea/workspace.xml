@@ -363,6 +363,8 @@
       <workItem from="1620808037748" duration="5749000" />
       <workItem from="1620875682805" duration="1253000" />
       <workItem from="1620877281026" duration="4251000" />
+      <workItem from="1622024528031" duration="282000" />
+      <workItem from="1622451187402" duration="3080000" />
     </task>
     <servers />
   </component>
@@ -402,6 +404,10 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="699" y="326" width="989" height="685" key="#xdebugger.evaluate/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1618922866219" />
+    <state x="440" y="94" key="#项目结构" timestamp="1622024549217">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="440" y="94" key="#项目结构/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1622024549217" />
     <state x="289" y="236" key="FileChooserDialogImpl" timestamp="1620885920417">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
@@ -478,10 +484,10 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="371" y="74" key="new project wizard/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1620885958287" />
-    <state x="398" y="281" width="672" height="678" key="search.everywhere.popup" timestamp="1614059874877">
+    <state x="398" y="281" width="672" height="678" key="search.everywhere.popup" timestamp="1622452125901">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="398" y="281" width="672" height="678" key="search.everywhere.popup/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1614059874877" />
+    <state x="398" y="281" width="672" height="678" key="search.everywhere.popup/0.0.1920.1040/-1920.84.1920.1040@0.0.1920.1040" timestamp="1622452125901" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

@@ -8361,3 +8361,303 @@ public enum DispatcherType {
 </project>
 ```
 
+[Spring Web MVC DispatcherServlet]: https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-servlet
+
+```java
+// 可以编写一个类来实现WebApplicationInitializer接口，当然了，也可以编写一个类来实现ServletContainerInitializer接口
+public class MyWebApplicationInitializer implements WebApplicationInitializer {
+
+    @Override
+    public void onStartup(ServletContext servletContext) {
+
+        // 然后，创建一个AnnotationConfigWebApplicationContext对象，它应该代表的是web的IOC容器
+        AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
+        // 加载我们的配置类
+        context.register(AppConfig.class);
+
+        // 在容器启动的时候，自定义创建一个DispatcherServlet对象，并将其注册在ServletContext中
+        DispatcherServlet servlet = new DispatcherServlet(context);
+        ServletRegistration.Dynamic registration = servletContext.addServlet("app", servlet);
+        registration.setLoadOnStartup(1);
+        // 这儿是来配置DispatcherServlet的映射信息的
+        registration.addMapping("/app/*");
+    }
+}
+```
+
+当然了，如果使用以上这种编码方式来整合Spring MVC，那也不是不可以，只不过现在并不会用这种方式而已。
+
+其实，这种方式类似于以前整合`Spring MVC`时在`web.xml`文件中写的如下配置
+
+```xml
+<!-- 使用监听器启动Spring的配置（即spring/applicationContext-*.xml），加载Spring的配置来启动Spring容器，这个容器我们叫它父容器，也可以称之为根容器 -->
+<listener>
+	<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+</listener>
+<!-- 初始化Spring容器 -->
+<context-param>
+	<param-name>contextConfigLocation</param-name>
+	<param-value>classpath:spring/applicationContext-*.xml</param-value>
+</context-param>
+<!-- 子容器，Spring MVC子容器-->
+<!-- 前端控制器 -->
+<servlet>
+	<servlet-name>taotao-search-web</servlet-name>
+	<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+	<!-- contextConfigLocation不是必须的，如果不配置contextConfigLocation， Spring MVC的配置文件默认在：WEB-INF/servlet的name+"-servlet.xml" -->
+	<init-param>
+		<param-name>contextConfigLocation</param-name>
+		<!-- 指定Spring MVC配置文件的路径 -->
+		<param-value>classpath:spring/springmvc.xml</param-value>
+	</init-param>
+	<load-on-startup>1</load-on-startup>
+</servlet>
+<!-- 配好映射 -->
+<servlet-mapping>
+	<servlet-name>taotao-search-web</servlet-name>
+	<!-- 伪静态化 -->
+	<url-pattern>*.html</url-pattern>
+</servlet-mapping>
+```
+
+以前配置的是这种父子容器，而且`Spring`也推荐使用父子容器的概念。
+
+既然我们不会用上述这种方式，那么得用哪种方式呢？不妨展开`maven`工程下的`Maven Dependencies`目录，发现导入了`spring-web-5.2.6.RELEASE.jar`这样一个jar包，如下图所示。
+![](http://120.77.237.175:9080/photos/springanno/304.jpg)
+
+展开该jar包，发现它里面有一个`META-INF/services/`目录，而且在该目录下有一个名字叫`javax.servlet.ServletContainerInitializer`的文件，其内容如下所示。
+
+```java
+org.springframework.web.SpringServletContainerInitializer
+```
+
+以前就说过，`Servlet`容器在启动应用的时候，会扫描当前应用每一个`jar`包里面的`META-INF/services/javax.servlet.ServletContainerInitializer`文件中指定的实现类，然后加载该实现类并运行它里面的方法。
+
+来看一下`spring-web-5.2.6.RELEASE.jar`中`META-INF/services/`目录里面的`javax.servlet.ServletContainerInitializer`文件中到底指定的哪一个类，从上图我们可以知道其指定的是`org.springframework.web.SpringServletContainerInitializer`这个类。
+
+不妨查看一下该类的源码，如下图所示，它实现的就是`ServletContainerInitializer`接口。
+
+```java
+@HandlesTypes(WebApplicationInitializer.class)
+public class SpringServletContainerInitializer implements ServletContainerInitializer {
+
+	@Override
+	public void onStartup(@Nullable Set<Class<?>> webAppInitializerClasses, ServletContext servletContext)
+			throws ServletException {
+
+		List<WebApplicationInitializer> initializers = new LinkedList<>();
+
+		if (webAppInitializerClasses != null) {
+			for (Class<?> waiClass : webAppInitializerClasses) {
+				// Be defensive: Some servlet containers provide us with invalid classes,
+				// no matter what @HandlesTypes says...
+				if (!waiClass.isInterface() && !Modifier.isAbstract(waiClass.getModifiers()) &&
+						WebApplicationInitializer.class.isAssignableFrom(waiClass)) {
+					try {
+						initializers.add((WebApplicationInitializer)
+								ReflectionUtils.accessibleConstructor(waiClass).newInstance());
+					}
+					catch (Throwable ex) {
+						throw new ServletException("Failed to instantiate WebApplicationInitializer class", ex);
+					}
+				}
+			}
+		}
+
+		if (initializers.isEmpty()) {
+			servletContext.log("No Spring WebApplicationInitializer types detected on classpath");
+			return;
+		}
+
+		servletContext.log(initializers.size() + " Spring WebApplicationInitializers detected on classpath");
+		AnnotationAwareOrderComparator.sort(initializers);
+		for (WebApplicationInitializer initializer : initializers) {
+			initializer.onStartup(servletContext);
+		}
+	}
+
+}
+```
+
+里面也只有一个`onStartup`方法，所以重点来看该方法的具体实现。
+
+`Servlet`容器在启动`Spring`应用之后，会传入一个感兴趣的类型的集合，然后在`onStartup`方法中拿到之后就会来挨个遍历，如果遍历出来的感兴趣的类型不是接口，也不是抽象类，但是`WebApplicationInitializer`接口旗下的，那么就会创建该类型的一个实例，并将其存储到名为`initializers`的`LinkedList<WebApplicationInitializer>`集合中。
+
+也可以这样说，`Spring`的应用一启动就会加载感兴趣的`WebApplicationInitializer`接口旗下的所有组件，并且为这些`WebApplicationInitializer`组件创建对象，当然前提是这些组件即不是接口，也不是抽象类。
+
+接下来，到`WebApplicationInitializer`接口中，查看该接口的继承树,发现它下面有四个抽象类，如下图所示。
+![](http://120.77.237.175:9080/photos/springanno/305.jpg)
+
+### `AbstractContextLoaderInitializer`
+
+```java
+@Override
+public void onStartup(ServletContext servletContext) throws ServletException {
+	registerContextLoaderListener(servletContext);
+}
+
+protected void registerContextLoaderListener(ServletContext servletContext) {
+		WebApplicationContext rootAppContext = createRootApplicationContext();
+		if (rootAppContext != null) {
+			ContextLoaderListener listener = new ContextLoaderListener(rootAppContext);
+			listener.setContextInitializers(getRootApplicationContextInitializers());
+			servletContext.addListener(listener);
+		}
+		else {
+			logger.debug("No ContextLoaderListener registered, as " +
+					"createRootApplicationContext() did not return an application context");
+		}
+}
+```
+
+发现在该方法中调用了一个`registerContextLoaderListener`方法，见名思意，应该是来注册`ContextLoaderListener`的。
+
+继续点进`registerContextLoaderListener`方法里面去看一看，发现它里面调用了一个`createRootApplicationContext`方法，该方法是来创建根容器的，而且该方法是一个抽象方法，需要子类自己去实现。然后，根据创建的根容器创建上下文加载监听器（即`ContextLoaderListener`），接着，向`ServletContext`中注册这个监听器。
+
+接下来，来研究一下它下面的子类，即`AbstractDispatcherServletInitializer`，从名字上能知道它就是一个`DispatcherServlet`（即Spring MVC的前端控制器）的初始化器。
+
+### `AbstractDispatcherServletInitializer`
+
+不妨点进该抽象类里面去看一看，并且主要来看其`onStartUp`方法，发现会注册`DispatcherServlet`，如下所示。
+
+```java
+public void onStartup(ServletContext servletContext) throws ServletException {
+    super.onStartup(servletContext);
+    this.registerDispatcherServlet(servletContext);
+}
+```
+
+然后，继续点进`registerDispatcherServlet`方法里面去看一看，究竟是怎么向`ServletContext`中注册`DispatcherServle`t的，如下所示。
+
+```java
+    protected void registerDispatcherServlet(ServletContext servletContext) {
+        String servletName = this.getServletName();
+        Assert.hasLength(servletName, "getServletName() must not return null or empty");
+        WebApplicationContext servletAppContext = this.createServletApplicationContext();
+        Assert.notNull(servletAppContext, "createServletApplicationContext() must not return null");
+        FrameworkServlet dispatcherServlet = this.createDispatcherServlet(servletAppContext);
+        Assert.notNull(dispatcherServlet, "createDispatcherServlet(WebApplicationContext) must not return null");
+        dispatcherServlet.setContextInitializers(this.getServletApplicationContextInitializers());
+        Dynamic registration = servletContext.addServlet(servletName, dispatcherServlet);
+        if (registration == null) {
+            throw new IllegalStateException("Failed to register servlet with name '" + servletName + "'. Check if there is another servlet registered under the same name.");
+        } else {
+            registration.setLoadOnStartup(1);
+            registration.addMapping(this.getServletMappings());
+            registration.setAsyncSupported(this.isAsyncSupported());
+            Filter[] filters = this.getServletFilters();
+            if (!ObjectUtils.isEmpty(filters)) {
+                Filter[] var7 = filters;
+                int var8 = filters.length;
+
+                for(int var9 = 0; var9 < var8; ++var9) {
+                    Filter filter = var7[var9];
+                    this.registerServletFilter(servletContext, filter);
+                }
+            }
+
+            this.customizeRegistration(registration);
+        }
+    }
+```
+
+发现会先调用`createServletApplicationContext`方法来创建一个`WebApplicationContext`（即`web`的`IOC`容器），再调用`createDispatcherServlet`方法来创建一个`DispatcherServlet`，不妨点进`createDispatcherServlet`方法里面去看一看，如下所示，是不是在这儿`new`了一个`DispatcherServlet`啊？
+
+```java
+    protected FrameworkServlet createDispatcherServlet(WebApplicationContext servletAppContext) {
+        return new DispatcherServlet(servletAppContext);
+    }
+```
+
+此外，还发现在`registerDispatcherServlet`方法中还会将创建好的`DispatcherServlet`注册到`ServletAppContext`中，很显然，这时会返回一个`ServletRegistration.Dynamic`对象，自然地就要来配置该`DispatcherServlet`的映射信息了，在配置该`DispatcherServlet`的映射信息时，还调用了一个`getServletMapppings`方法，不过该方法是一个抽象方法，需要由子类自己来重写。
+
+### `AbstractAnnotationConfigDispatcherServletInitializer`
+
+点进该抽象类里面去看一看，可以看到它重写了`AbstractContextLoaderInitializer`抽象父类里面的`createRootApplicationContext`方法，如下所示，而且知道该方法是来创建根容器的。
+
+```java
+	@Override
+	@Nullable
+	protected WebApplicationContext createRootApplicationContext() {
+        // 传入一个配置类（用户自定义）
+		Class<?>[] configClasses = getRootConfigClasses();
+		if (!ObjectUtils.isEmpty(configClasses)) {
+            // 创建一个根容器
+			AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
+            // 注册获取到的配置类，相当于注册配置类里面的组件
+			context.register(configClasses);
+			return context;
+		}
+		else {
+			return null;
+		}
+	}
+```
+
+那是怎样创建根容器的呢？首先获取到一个配置类，调用的可是`getRootConfigClasses`方法，调用该方法能传入一个配置类（其实就是自定义写的），而且该方法还是一个抽象方法，需要由子类自定义来重写。继续，要知道以前写的可是`xml`配置文件，获取到了之后，会`new`一个`AnnotationConfigWebApplicationContext`，这就相当于创建了一个根容器，然后将获取到的配置类注册进去，相当于是注册配置类里面的组件，最终返回创建的根容器。
+
+此外，该抽象类里面还有一个`createServletApplicationContext`方法，如下所示，它是来创建`web`的`IOC`容器的，其实这个方法就是重写的`AbstractDispatcherServletInitializer`抽象类里面的`createServletApplicationContext`方法。
+
+```java
+	@Override
+	protected WebApplicationContext createServletApplicationContext() {
+		// 创建一个web容器
+		AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
+        // 获取一个配置类
+		Class<?>[] configClasses = getServletConfigClasses();
+		if (!ObjectUtils.isEmpty(configClasses)) {
+            // 注册获取到的配置类，相当于注册配置类里面的组件
+			context.register(configClasses);
+		}
+		return context;
+	}
+```
+
+可以看到，在以上方法中首先会创建一个`web`的`IOC`容器（即`AnnotationConfigWebApplicationContext`对象），然后再获取一个配置类，调用的是`getServletConfigClasses`方法，不妨点进该方法里面去看一下，如下所示，发现它是一个抽象方法，需要由子类自己来重写。
+
+```java
+@Nullable
+protected abstract Class<?>[] getServletConfigClasses();
+```
+
+获取到配置类之后，最终会将其注册进去。
+
+### 总结
+
+如果想以注解方式（也可以说是以配置类的方式）来整合`Spring MVC`，即再也不要在`web.xml`文件中进行配置，那么只需要自己来继承`AbstractAnnotationConfigDispatcherServletInitializer`这个抽象类就行了。继承它之后，它里面会给预留一些抽象方法，例如`getServletConfigClasses`、`getRootConfigClasses`以及`getServletMappings`等抽象方法，只须重写这些抽象方法即可，这样就能指定`DispatcherServlet`的配置信息了，随即，`DispatcherServlet`就会被自动地注册到`ServletContext`对象中。
+
+最后，来看一下Spring的官方文档吧！在1.1.1. Context Hierarchy这一小节中，在最显眼的位置可以看到一张图，如下所示。
+
+![](http://120.77.237.175:9080/photos/springanno/306.jpg)
+
+可以看到`Spring`官方也推荐使用父子容器的概念，分为根容器和web容器：
+
+- web容器：也即子容器，只来扫描`controller`控制层组件（一般不包含核心业务逻辑，只有数据校验和视图渲染等工作）与视图解析器等等
+- 根容器：扫描业务逻辑核心组件，包括不同的数据源等等
+
+
+继续往下看1.1.1. Context Hierarchy这一小节中的内容，要想以注解方式（也可以说是以配置类的方式）来整合`Spring MVC`，那么只需要自己来继承`AbstractAnnotationConfigDispatcherServletInitializer`这个抽象类就行了，这样，`web`容器启动的时候就能处理我们实现的这个类的内容了。
+
+```java
+public class MyWebAppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
+
+    @Override
+    protected Class<?>[] getRootConfigClasses() {
+        return new Class<?>[] { RootConfig.class };
+    }
+
+    @Override
+    protected Class<?>[] getServletConfigClasses() {
+        return new Class<?>[] { App1Config.class };
+    }
+
+    @Override
+    protected String[] getServletMappings() {
+        return new String[] { "/app1/*" };
+    }
+}
+```
+
+## Servlet 3.0整合Spring MVC
+
+首先，自定义编写一个类，例如MyWebAppInitializer，来继承`AbstractAnnotationConfigDispatcherServletInitializer`这个抽象类，一开始我们写成下面这样。
