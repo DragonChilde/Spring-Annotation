@@ -8660,4 +8660,124 @@ public class MyWebAppInitializer extends AbstractAnnotationConfigDispatcherServl
 
 ## Servlet 3.0整合Spring MVC
 
-首先，自定义编写一个类，例如MyWebAppInitializer，来继承`AbstractAnnotationConfigDispatcherServletInitializer`这个抽象类，一开始我们写成下面这样。
+首先，自定义编写一个类，例如`MyWebAppInitializer`，来继承`AbstractAnnotationConfigDispatcherServletInitializer`这个抽象类，一开始我们写成下面这样。
+
+```java
+//web容器启动的时候创建对象；调用方法来初始化容器以前前端控制器
+public class MyWebAppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
+
+    //获取根容器的配置类；（Spring的配置文件）   父容器；
+    @Override
+    protected Class<?>[] getRootConfigClasses() {
+        return new Class[0];
+    }
+
+    //获取web容器的配置类（SpringMVC配置文件）  子容器；
+    @Override
+    protected Class<?>[] getServletConfigClasses() {
+        return new Class[0];
+    }
+
+    //获取DispatcherServlet的映射信息
+    //  /：拦截所有请求（包括静态资源（xx.js,xx.png）），但是不包括*.jsp；
+    //  /*：拦截所有请求；连*.jsp页面都拦截；jsp页面是tomcat的jsp引擎解析的；
+    @Override
+    protected String[] getServletMappings() {
+        return new String[0];
+    }
+}
+```
+
+以上该类会在web容器启动的时候创建对象，而且在整个创建对象的过程中，会来调用相应方法来初始化容器以及前端控制器。
+
+自定义的`MyWebAppInitializer`类继承了`AbstractAnnotationConfigDispatcherServletInitializer`抽象类之后，发现它里面需要重写三个抽象方法
+
+- `getRootConfigClasses`方法：它是来获取根容器的配置类的，该配置类就类似于以前经常写的`Spring`的配置文件，而且以前是利用监听器的方式来读取`Spring`的配置文件的，然后，就能创建出一个父容器了
+
+- `getServletConfigClasses`方法：它是来获取`web`容器的配置类的，该配置类就类似于以前经常写的`Spring MVC`的配置文件，而且以前是利用前端控制器来加载`Spring MVC`的配置文件，然后，就能创建出一个子容器了
+
+- `getServletMappings`方法：它是来获取`DispatcherServlet`的映射信息的。该方法需要返回一个`String[]`，如果返回的是这样一个`new String[]{"/"}`，即：
+
+  ```java
+  @Override
+  protected String[] getServletMappings() {
+      // TODO Auto-generated method stub
+      return new String[]{"/"};
+  }
+  ```
+
+  那么`DispatcherServlet`就会来拦截所有请求，包括静态资源，比如xxx.js文件、xxx.png等等等等，但是不包括`*.jsp`，也即不会拦截所有的jsp页面。
+
+  如果返回的是这样一个`new String[]{"/*"}`
+
+  ```java
+  @Override
+  protected String[] getServletMappings() {
+      // TODO Auto-generated method stub
+      return new String[]{"/*"};
+  }
+  ```
+
+  那么`DispatcherServlet`就是真正来拦截所有请求了，包括*.jsp，也就是说就连jsp页面都拦截，所以，切忌不可写成这样（即/*）。否则的话，jsp页面一旦被`Spring MVC`拦截，最终极有可能就看不到jsp页面了，因为jsp页面是由Tomcat服务器中的jsp引擎来解析的。
+
+也就是说，最好是在`getServletMappings`方法中返回这样一个`new String[]{"/"}`，即：
+
+```java
+//web容器启动的时候创建对象；调用方法来初始化容器以前前端控制器
+public class MyWebAppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
+
+    //获取根容器的配置类；（Spring的配置文件）   父容器；
+    @Override
+    protected Class<?>[] getRootConfigClasses() {
+        return new Class[0];
+    }
+
+    //获取web容器的配置类（SpringMVC配置文件）  子容器；
+    @Override
+    protected Class<?>[] getServletConfigClasses() {
+        return new Class[0];
+    }
+
+    //获取DispatcherServlet的映射信息
+    //  /：拦截所有请求（包括静态资源（xx.js,xx.png）），但是不包括*.jsp；
+    //  /*：拦截所有请求；连*.jsp页面都拦截；jsp页面是tomcat的jsp引擎解析的；
+    @Override
+    protected String[] getServletMappings() {
+        return new String[]{"/"};
+    }
+}
+```
+
+由于还需要在`getRootConfigClasses`和`getServletConfigClasses`这俩方法中指定两个配置类的位置，所以创建上两个配置类，分别如下：
+
+- 根容器的配置类
+
+  ```java
+  public class RootConfig {
+  }
+  ```
+
+- web容器的配置类
+
+  ```java
+  public class AppConfig {
+  }
+  ```
+
+这两个配置类最终需要形成父子容器的效果。还要有一点，需要重点来说明，即`AppConfig`配置类只来扫描所有的控制器（即`Controller`），以及和网站功能有关的那些逻辑组件；`RootConfig`配置类只来扫描所有的业务逻辑核心组件，包括`dao`层组件、不同的数据源等等，反正它只扫描和业务逻辑相关的组件了。
+
+接下来，完善以上两个配置类。首先，先来完善`RootConfig`配置类，可以使用`@ComponentScan`注解来指定扫描`com.anno`包以及子包下的所有组件，而且为了形成父子容器，还必须得排除掉一些组件，很显然，应该排除掉`controller`控制层组件，通过`@ComponentScan`注解`的excludeFilters()`方法按照注解的方式来排除掉所有标注了`@Controller`注解的组件。
+
+```java
+//该配置类相当于Spring的配置文件
+//Spring容器不扫描Controller，它是一个父容器
+@ComponentScan(value = "com.anno", excludeFilters = {@ComponentScan.Filter(type = FilterType.ANNOTATION, classes = {Controller.class})})
+public class RootConfig {
+}
+```
+
+然后，再来完善`AppConfig`配置类，同样使用`@ComponentScan`注解来指定扫描`com.anno`包以及子包下的所有组件，但是与上面正好相反，这儿只扫描`controller`控制层组件，即`Controller`，如此一来就能与上面形成互补配置了。那就通过`@ComponentScan`注解的 `includeFilters()`方法按照注解的方式来指定只扫描`controller`控制层组件。
+
+
+
+
