@@ -8778,6 +8778,928 @@ public class RootConfig {
 
 然后，再来完善`AppConfig`配置类，同样使用`@ComponentScan`注解来指定扫描`com.anno`包以及子包下的所有组件，但是与上面正好相反，这儿只扫描`controller`控制层组件，即`Controller`，如此一来就能与上面形成互补配置了。那就通过`@ComponentScan`注解的 `includeFilters()`方法按照注解的方式来指定只扫描`controller`控制层组件。
 
+```java
+// 该配置类相当于Spring MVC的配置文件
+// Spring MVC容器只扫描Controller，它是一个子容器
+// useDefaultFilters=false：禁用默认的过滤规则
+@ComponentScan(value = "com.anno", includeFilters = {@ComponentScan.Filter(type = FilterType.ANNOTATION, classes = {Controller.class})}, useDefaultFilters = false)
+public class AppConfig {
+}
+```
+
+以上配置类中通过`@ComponentScan`注解的`includeFilters()`方法来指定只扫描`controller`控制层组件时，需要禁用掉默认的过滤规则，即必须得加上`useDefaultFilters=false`这样一个配置。千万记得必须要禁用掉默认的过滤规则哟，否则扫描就不会生效了。
+
+但是，在`RootConfig`配置类中通过`@ComponentScan`注解的`excludeFilters()`方法来指定排除哪些组件时，是不需要对`useDefaultFilters`进行设置的，因为其默认值就是`true`，表示默认情况下标注了`@Component`、`@Repository`、`@Service`以及`@Controller`这些注解的组件都会被扫描，即扫描所有。
+
+接下来，分别编写一个`controller`控制层组件和`service`业务层组件来进行测试了。首先，编写一个`service`业务层组件，例如`HelloService`，如下所示。
+
+```java
+@Service
+public class HelloService {
+
+    public String sayHello(String name) {
+        return "Hello ," + name;
+    }
+}
+```
+
+然后，编写一个`controller`控制层组件，`HelloController`，并且在该`HelloController`中注入`HelloService`组件，来调用其方法。
+
+```java
+@Controller
+public class HelloController {
+
+    @Autowired
+    private HelloService helloService;
 
 
+    @ResponseBody
+    @RequestMapping("/hello")
+    public String hello() {
+        return helloService.sayHello("tomcat...");
+    
+    }
+}
+```
+
+上面代码中，可以看到它里面的`hello`方法是来处理`hello`请求的，而且通过`@ResponseBody`注解会直接将返回的结果（即字符串)
+
+现在还不能进行测试,需要自定义编写的`MyWebAppInitializer`类中指定两个配置类的位置
+
+```java
+//web容器启动的时候创建对象；调用方法来初始化容器以前前端控制器
+public class MyWebAppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
+
+    //获取根容器的配置类；（Spring的配置文件）   父容器；
+    @Override
+    protected Class<?>[] getRootConfigClasses() {
+        return new Class<?>[]{
+                RootConfig.class
+        };
+    }
+
+    //获取web容器的配置类（SpringMVC配置文件）  子容器；
+    @Override
+    protected Class<?>[] getServletConfigClasses() {
+        return new Class<?>[]{
+                AppConfig.class
+        };
+    }
+
+    //获取DispatcherServlet的映射信息
+    //  /：拦截所有请求（包括静态资源（xx.js,xx.png）），但是不包括*.jsp；
+    //  /*：拦截所有请求；连*.jsp页面都拦截；jsp页面是tomcat的jsp引擎解析的；
+    @Override
+    protected String[] getServletMappings() {
+        return new String[]{"/"};
+    }
+}
+```
+
+这就相当于分别来指定`Spring`配置文件和`Spring MVC`配置文件的位置。
+
+启动项目来进行测试了。项目启动成功之后，我们在浏览器地址栏中输入http://localhost:8080/springmvc_annotation/hello进行访问，发现浏览器页面上确实打印出来了一串字符串，如下图所示。
+
+```
+Hello ,tomcat...
+```
+
+这说明`controller`控制层组件和`service`业务层组件都起作用了。
+
+### 总结
+
+`web`容器（即`Tomcat`服务器）在启动应用的时候，会扫描当前应用每一个`jar`包里面的`META-INF/services/javax.servlet.ServletContainerInitializer`文件中指定的实现类，然后再运行该实现类中的方法。
+
+恰好在spring-web-5.2.6.RELEASE.jar中的META-INF/services/`目录里面有一个`javax.servlet.ServletContainerInitializer`文件，并且在该文件中指定的实现类就是`org.springframework.web.SpringServletContainerInitializer`，打开该实现类，发现它上面标注了`@HandlesTypes(WebApplicationInitializer.class)`这样一个注解。
+
+因此，`web`容器在启动应用的时候，便会来扫描并加载`org.springframework.web.SpringServletContainerInitializer`实现类，而且会传入感兴趣的类型（即`WebApplicationInitializer`接口）的所有后代类型，最终再运行其`onStartup`方法。
+
+```java
+@HandlesTypes(WebApplicationInitializer.class)
+public class SpringServletContainerInitializer implements ServletContainerInitializer {
+
+	@Override
+	public void onStartup(@Nullable Set<Class<?>> webAppInitializerClasses, ServletContext servletContext)
+			throws ServletException {
+
+		List<WebApplicationInitializer> initializers = new LinkedList<>();
+
+		if (webAppInitializerClasses != null) {
+			for (Class<?> waiClass : webAppInitializerClasses) {
+				// Be defensive: Some servlet containers provide us with invalid classes,
+				// no matter what @HandlesTypes says...
+				if (!waiClass.isInterface() && !Modifier.isAbstract(waiClass.getModifiers()) &&
+						WebApplicationInitializer.class.isAssignableFrom(waiClass)) {
+					try {
+						initializers.add((WebApplicationInitializer)
+								ReflectionUtils.accessibleConstructor(waiClass).newInstance());
+					}
+					catch (Throwable ex) {
+						throw new ServletException("Failed to instantiate WebApplicationInitializer class", ex);
+					}
+				}
+			}
+		}
+
+		if (initializers.isEmpty()) {
+			servletContext.log("No Spring WebApplicationInitializer types detected on classpath");
+			return;
+		}
+
+		servletContext.log(initializers.size() + " Spring WebApplicationInitializers detected on classpath");
+		AnnotationAwareOrderComparator.sort(initializers);
+		for (WebApplicationInitializer initializer : initializers) {
+			initializer.onStartup(servletContext);
+		}
+	}
+
+}
+```
+
+从以上`onStartup`方法中，可以看到它会遍历感兴趣的类型（即`WebApplicationInitializer`接口）的所有后代类型，然后利用反射技术创建`WebApplicationInitializer`类型的对象，而自定义的`MyWebAppInitializer`就是`WebApplicationInitializer`这种类型的。而且创建完之后，都会存储到名为`initializers`的`LinkedList<WebApplicationInitializer>`集合中。接着，又会遍历该集合，并调用每一个`WebApplicationInitializer`对象的`onStartup`方法。
+
+遍历到每一个`WebApplicationInitializer`对象之后，调用其`onStartup`方法，实际上就是先调用其（自定义的`MyWebAppInitializer`）最高父类的`onStartup`方法，创建根容器；然后再调用其次高父类的`onStartup`方法，创建`web`容器以及`DispatcherServlet`；接着，根据其重写的`getServletMappings`方法来为`DispatcherServlet`配置映射信息
+
+
+## 定制与接管Spring MVC
+
+以前整合`Spring MVC`的开发，应该有一个`Spring MVC`的配置文件,例如`mvc.xml`，在该配置文件中会写非常多的配置，下面就列举一下该配置文件中的一些常用配置
+
+```xml
+<mvc:default-servlet-handler/>
+```
+
+该配置的作用就是将`Spring MVC`处理不了的请求交给`Tomcat`服务器，它是专门来针对静态资源的。试想，如果`Spring MVC`拦截了所有请求，必然地，静态资源也被一起拦截了，那么静态资源就无法访问到了，而写上该配置之后，静态资源就可以被访问到了。
+
+```xml
+<mvc:annotation-driven />
+```
+
+以上配置经常会跟`<mvc:default-servlet-handler/>`配置成对出现，该配置更多的作用是来开启`Spring MVC`的高级功能。
+
+配置过拦截器
+
+```xml
+<mvc:interceptors>
+    ...
+</mvc:interceptors>
+```
+
+配置视图映射
+
+```xml
+<mvc:view-controller path=""/>
+```
+
+以前会在`Spring MVC`的配置文件中配置非常多的东西，但是现在没有该配置文件了，要如何处理?
+
+Spring MVC官方文档https://docs.spring.io/spring-framework/docs/current/reference/html/web.html Enable MVC Configuration,注解`@EnableWebMvc`,它的作用就相当于来启动`Spring MVC`的自定义配置
+
+首先得写一个配置类，然后将`@EnableWebMvc`注解标注在该配置类上。就以上一讲中的`AppConfig`配置类为例，将`@EnableWebMvc`注解标注在该配置类上，如下所示。
+
+```java
+@ComponentScan(value = "com.anno", includeFilters = {@ComponentScan.Filter(type = FilterType.ANNOTATION, classes = {Controller.class})}, useDefaultFilters = false)
+@EnableWebMvc
+public class AppConfig {
+}
+```
+
+`@EnableWebMvc`注解的作用就是来开启`Spring MVC`的定制配置功能。官方文档中发现在配置类上标注了`@EnableWebMvc`注解之后，相当于在`xml`配置文件中加上了`<mvc:annotation-driven/>`这样一个配置，它是来开启Spring MVC的一些高级功能的
+
+然后,配置组件。比如视图解析器、视图映射、静态资源映射以及拦截器等等,在官方文档MVC Config API里,发现让`Java`配置类实现`WebMvcConfigurer`接口就可以来定制配置
+
+```
+@ComponentScan(value = "com.anno", includeFilters = {@ComponentScan.Filter(type = FilterType.ANNOTATION, classes = {Controller.class})}, useDefaultFilters = false)
+@EnableWebMvc
+public class AppConfig  implements WebMvcConfigurer {
+
+    @Override
+    public void configurePathMatch(PathMatchConfigurer configurer) {
+
+    }
+
+    @Override
+    public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+
+    }
+
+    @Override
+    public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+
+    }
+    
+    //等等...还有很多实现类
+}
+```
+
+`WebMvcConfigurer`接口里面定义了好多的方法,如下所示
+
+![](http://120.77.237.175:9080/photos/springanno/307.jpg)
+
+实现该接口之后，实现其里面的每一个方法了，这就是来定制Spring MVC,来看一下其中的`configurePathMatch`方法，该方法的作用就是来配置路径映射规则的。
+
+```java
+@Override
+public void configurePathMatch(PathMatchConfigurer configurer) {
+}
+```
+
+再来看一下其中的`configureAsyncSupport`方法，它的作用是来配置是否开启异步支持的。
+
+```java
+@Override
+public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+}
+```
+
+再再来看一下其中的`configureDefaultServletHandling`方法，它的作用是来配置是否开启静态资源的。实现一下该方法，如下所示。
+
+```java
+@Override
+public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+}
+```
+
+实现以上方法之后，效果就相当于在`xml`配置文件中写上`<mvc:default-servlet-handler/>`这样一个配置。
+
+再看其中的`addFormatters`方法，它的作用是可以来添加一些自定义的类型转换器以及格式化器
+
+```java
+default void addFormatters(FormatterRegistry registry) {
+}
+```
+
+最后，看一下其中的`addInterceptors`方法，顾名思义，它是来添加拦截器的。
+
+```java
+default void addInterceptors(InterceptorRegistry registry) {
+}
+```
+
+配置类只要实现了`WebMvcConfigurer`接口，那么就得一个一个来实现其中的方法了?看看`WebMvcConfigurer`接口的源码了，如下图所示，发现它下面有一个叫`WebMvcConfigurerAdapter`的适配器。
+
+![](http://120.77.237.175:9080/photos/springanno/308.jpg)
+
+> 注意:从上图可以看到此接口已经废弃了,因此这里不再使用此接口,基于Spring5的话,现在直接继承`WebMvcConfigurer`此接口进行重写
+
+```java
+@ComponentScan(value="com.anno",includeFilters={
+        @ComponentScan.Filter(type= FilterType.ANNOTATION,classes={Controller.class})
+},useDefaultFilters=false)
+@Configuration
+@EnableWebMvc
+public class AppConfig implements WebMvcConfigurer {
+    
+    /**
+     * 定制视图解析器
+     * @param registry
+     */
+    @Override
+    public void configureViewResolvers(ViewResolverRegistry registry) {
+
+        // 如果直接调用jsp方法，那么默认所有的页面都从/WEB-INF/目录下开始找，即找所有的jsp页面
+        // registry.jsp();
+        /*
+         * 当然了，编写规则，比如指定一个前缀，即/WEB-INF/views/，再指定一个后缀，即.jsp，
+         * 很显然，此时，所有的jsp页面都会存放在/WEB-INF/views/目录下，自然地，程序就会去/WEB-INF/views/目录下面查找jsp页面了
+         */
+        registry.jsp("/WEB-INF/views/", ".jsp");
+    }
+}
+```
+
+在项目的`webapp`目录下新建一个`WEB-INF/views`目录，该目录是专门用于存放`jsp`页面的，然后再在`WEB-INF/views`目录新建一个`jsp`页面，例如`success.jsp`，其内容如下所示。
+
+```jsp
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+<head>
+    <title>Title</title>
+</head>
+<body>
+<h1>success</h1>
+</body>
+</html>
+```
+
+接着，`HelloController`中新增一个如下`success`方法
+
+```java
+    @RequestMapping("/success")
+    public String success()
+    {
+        // 这儿直接返回"success"，那么它就会跟我们视图解析器中指定的那个前后缀进行拼串，来到指定的页面
+        return "success";
+    }
+```
+
+启动项目，启动成功之后，在浏览器地址栏中输入http://localhost:8080/springmvc_annotation/success进行访问，成功显示这说明我们已经成功定制了视图解析器，因为定制的视图解析器起效果了。
+
+然后，来定制一下静态资源的访问。假设项目的`webapp`目录下的img文件夹里有一些静态资源，比如有一张图片，名字就叫test.jpg,该页面是项目的首页，随即在首页中使用一个`<img src="img/test.jpg"/>`标签来引入上面的图片，即在页面中引入静态资源。在浏览器中访问项目的首页，你会发现上面那张图片压根就显示不出来，与此同时，控制台会打印如下这样一个警告。
+
+```
+04-Jun-2021 15:59:57.386 警告 [http-nio-8080-exec-5] org.springframework.web.servlet.DispatcherServlet.noHandlerFound No mapping for GET /springmvc_annotation/test.jpg
+```
+
+这是因为请求被`Spring MVC`拦截处理了，这样，它就得要找`@RequestMapping`注解中写的映射了，但是实际上呢，`test.jpg`是一个静态资源，它得交给Tomcat服务器去处理，因此，我们就得来定制静态资源的访问了。重写`WebMvcConfigurer`接口中的configureDefaultServletHandling方法和配置`addResourceHandlers`资源路径就可以了。
+
+```java
+@ComponentScan(value = "com.anno", includeFilters = {
+        @ComponentScan.Filter(type = FilterType.ANNOTATION, classes = {Controller.class})
+}, useDefaultFilters = false)
+@Configuration
+@EnableWebMvc
+public class AppConfig implements WebMvcConfigurer {
+
+    /**
+     * 定制视图解析器
+     *
+     * @param registry
+     */
+    @Override
+    public void configureViewResolvers(ViewResolverRegistry registry) {
+
+        // 如果直接调用jsp方法，那么默认所有的页面都从/WEB-INF/目录下开始找，即找所有的jsp页面
+        // registry.jsp();
+        /*
+         * 当然了，编写规则，比如指定一个前缀，即/WEB-INF/views/，再指定一个后缀，即.jsp，
+         * 很显然，此时，所有的jsp页面都会存放在/WEB-INF/views/目录下，自然地，程序就会去/WEB-INF/views/目录下面查找jsp页面了
+         */
+        registry.jsp("/WEB-INF/views/", ".jsp");
+    }
+
+    /**
+     * 静态资源访问
+     */
+    @Override
+    public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+        configurer.enable();
+
+    }
+
+    /**
+     * 配置静态资源访问路径
+     * @param registry
+     */
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/").addResourceLocations("classpath:/img/");
+    }
+}
+```
+
+在以上`configureDefaultServletHandling`方法中调用`configurer.enable()`，其实就相当于以前在`xml`配置文件中写上`<mvc:default-servlet-handler/>`这样一个配置。
+
+`addResourceHandlers`配置源资访问路径,就相当 于xml中的`<mvc:resources mapping="/"    location="classpath:/img/" />`
+
+```java
+registry.addResourceHandler("/").addResourceLocations("classpath:/img/");
+```
+
+此时，重启项目，成功之后，再次来访问项目的首页，图片就可以正常访问到了。
+
+接着是定义定制拦截器,例如`MyFirstInterceptor`，必须得实现`Spring MVC`提供的`HandlerInterceptor`接口，如下所示。
+
+```java
+public class MyFirstInterceptor implements HandlerInterceptor {
+
+    //目标方法运行之前执行
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        System.out.println("preHandle..." + request.getRequestURI());
+        return true;
+    }
+
+    //目标方法执行正确以后执行
+    @Override
+    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+        System.out.println("postHandle...");
+    }
+
+    //页面响应以后执行
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        System.out.println("afterCompletion...");
+    }
+}
+```
+
+编写好以上拦截器之后，如果以前，那么就得在`xml`配置文件里面像下面这样配置该拦截器。
+
+```xml
+<mvc:interceptors>
+    <mvc:interceptor>
+        <mvc:mapping path="/**"/>
+        <bean class="com.anno.interceptor.MyFirstInterceptor"/>
+    </mvc:interceptor>
+</mvc:interceptors>
+```
+
+而现在只须复写`WebMvcConfigurer`抽象类中的`addInterceptors`方法就行了，就像下面这样。
+
+```java
+    /**
+     * 定制拦截器
+     *
+     * @param registry
+     */
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+
+        /*
+         * addInterceptor方法里面要传一个拦截器对象，该拦截器对象可以从容器中获取过来，也可以new一个，
+         * 很显然，这儿是new了一个自定义的拦截器对象。
+         *
+         * 虽然创建出了一个拦截器，但是最关键的一点还是指示拦截器要拦截哪些请求，因此还得继续使用addPathPatterns方法来配置一下，
+         * 若在addPathPatterns方法中传入了"/**"，则表示拦截器会拦截任意请求，而不管该请求是不是有任意多层路径
+         */
+        registry.addInterceptor(new MyFirstInterceptor()).addPathPatterns("/**");
+    }
+```
+
+重启项目，项目启动成功之后，在浏览器地址栏中输入`http://localhost:8080/springmvc_annotation/success`进行访问
+
+```
+preHandle.../springmvc_annotation/success
+postHandle...
+afterCompletion...
+```
+
+### 总结
+
+**想要个性化定制Spring MVC，那么使用SPRING5只须编写一个配置类来继承WebMvcConfigurer抽象类就行了，当然，前提是该配置类上得有`@EnableWebMvc`注解,并定义成配置类`@Configuration`**
+
+## Servlet 3.0异步请求
+
+在没有`Servlet 3.0`之前，请求处理的方式都是`Thread-Per-Request`，也就是说，每一个`Http`请求进来，都会给开一个线程来从头到尾负责处理。下面图片可以说明情况
+
+![](http://120.77.237.175:9080/photos/springanno/309.png)
+
+当发一个请求进来，`Tomcat`服务器里面会有一个线程池来进行处理请求，请求一进来，`Tomcat`服务器就从线程池中拿到一个空闲的线程来帮处理请求。请求处理时，必然就会调用业务逻辑，调完之后，就代表请求已经处理完了，接着就会给客户端一个响应，响应结束以后，整个线程就会得到释放，线程又会进入空闲状态，等待接收下一个请求。
+
+但是，`Tomcat`服务器中的线程池里面的线程数量是有限的，如果在没有异步处理的情况下，假设同时进来几百个请求，并且还假设线程池中的每一个线程都在处理请求，这时，正是由于没有异步处理，而服务器端的业务逻辑一旦调用很长一段的时间，那么下一个请求再要进来，`Tomcat`服务器中的主线程池里面就没有再多空闲的线程来处理了。请求没法得到处理的本质原因就是主线程没有及时得到释放，即没有更多的空闲线程来进行处理请求。
+
+下面实例验证一下,在`servlet3.0`的项目中，找到`HelloServlet`编写如下
+
+```java
+@WebServlet("/hello")
+public class HelloServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+
+        // 打印一下都是哪些线程在工作，Thread.currentThread()就是来打印当前线程的
+        System.out.println(Thread.currentThread() + " start");
+        try {
+            sayHello();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        // super.doGet(req, resp);
+        resp.getWriter().write("hello....");
+
+
+        System.out.println(Thread.currentThread() + " end");
+    }
+
+
+    public void sayHello() throws Exception {
+        // 打印一下究竟是哪些线程在工作
+        System.out.println(Thread.currentThread() + " processing...");
+        Thread.sleep(3000);	// 睡上3秒
+    }
+
+}
+```
+
+启动项目进行测试了。输入http://localhost:8080/servlet3/hello进行访问，即访问hello请求，大概等上3秒之后，就能在浏览器页面中看到hello ...这样的字符串了。而且，控制台还打印了如下内容。
+
+```
+Thread[http-nio-8080-exec-6,5,main] start
+Thread[http-nio-8080-exec-6,5,main] processing...
+Thread[http-nio-8080-exec-6,5,main] end
+```
+
+发现从始至终都是由`http-nio-8080-exec-6,5`这个线程来处理请求的。如果是以前没有异步处理的情况下，那么就会带来之前说的那个问题，即主线程得不到及时释放，下一个新的请求进来，就可能导致没法处理。
+
+异步请求处理情况下又是什么样子呢？可以查看`Servlet 3.0`标准规范文档，在该文档中找到`Dispatching Requests`这一大章节，然后在其下面找到`Obtaining an AsyncContext`这一小节,它说主要有一个异步的`AsyncContext`对象，该`AsyncContext`对象就可以来执行异步方法，执行完了之后，再通过`complete`方法通知`Tomcat`服务器请求已经处理完了。
+
+编写一个新的`Servlet`，`HelloAsyncServlet`来处理异步请求，先写成下面这样
+
+```java
+// @WebServlet注解表明该Servlet应该处理哪个请求
+@WebServlet(value = "/async")
+public class HelloAsyncServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        super.doGet(req, resp);
+    }
+
+    public void sayHello() throws Exception {
+        // 打印一下究竟是哪些线程在工作
+        System.out.println(Thread.currentThread() + " processing...");
+        Thread.sleep(3000); // 睡上3秒
+    }
+}
+```
+
+如果还是像上面那样在`doGet`方法中调用很耗时的`sayHello`方法，是不行的。要想真正达到异步请求处理的效果，按如下步骤处理
+
+第一步，开启异步处理。因为自定义的`HelloAsyncServlet`必须要说明支持异步处理，所以就得开启异步处理了。`@WebServlet`注解有一个`asyncSupported`属性，其值默认为`false`，将其值设置为`true`，`HelloAsyncServlet`就能支持异步处理了。
+
+```java
+@WebServlet(value = "/async",asyncSupported = true)
+```
+
+第二步，开启异步模式。通过`HttpServletRequest`对象的`startAsync`方法即可开启异步模式，并且最终该方法会返回一个异步的`AsyncContex`t对象。
+
+```java
+// @WebServlet注解表明该Servlet应该处理哪个请求
+@WebServlet(value = "/async",asyncSupported = true)
+public class HelloAsyncServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // 1. 先来让该Servlet支持异步处理，即asyncSupported=true
+        // 2. 开启异步模式
+        AsyncContext asyncContext = req.startAsync();
+    }
+
+    public void sayHello() throws Exception {
+        // 打印一下究竟是哪些线程在工作
+        System.out.println(Thread.currentThread() + " processing...");
+        Thread.sleep(3000); // 睡上3秒
+    }
+}
+```
+
+第三步，可以给返回的异步的`AsyncContext`对象里面进行设置。例如设置异步的监听器
+
+```java
+ asyncContext.addListener(AsyncListener var1);
+ asyncContext.addListener(AsyncListener var1, ServletRequest var2, ServletResponse var3);
+```
+
+还能设置异步请求处理的超时时间
+
+```
+ asyncContext.setTimeout(long var1);
+```
+
+再仔细看，会发现`AsyncContext`对象里面有一个`start`方法，而且该方法里面要传入一个`Runnable`对象，调用`start`方法，并传入一个自定义`new`的`Runnable`对象，继而通过`Runnable`对象里面的`run`方法来调用业务逻辑，即`sayHello`方法，这样来进行异步处理了
+
+```java
+// @WebServlet注解表明该Servlet应该处理哪个请求
+@WebServlet(value = "/async",asyncSupported = true)
+public class HelloAsyncServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // 1. 先来让该Servlet支持异步处理，即asyncSupported=true
+        // 2. 开启异步模式
+        AsyncContext asyncContext = req.startAsync();
+        // 3. 调用业务逻辑，进行异步处理，这儿是开始异步处理
+        asyncContext.start(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    sayHello();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    public void sayHello() throws Exception {
+        // 打印一下究竟是哪些线程在工作
+        System.out.println(Thread.currentThread() + " processing...");
+        Thread.sleep(3000); // 睡上3秒
+    }
+}
+```
+
+第四步，异步处理完了之后进行响应，即调用一下`AsyncContext`对象的`complete`方法；然后，给客户端一个响应，通过`AsyncContext`对象的`getResponse`方法获取到`ServletResponse`响应对象，再通过该响应对象给客户端来写数据。
+
+```java
+// @WebServlet注解表明该Servlet应该处理哪个请求
+@WebServlet(value = "/async", asyncSupported = true)
+public class HelloAsyncServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // 1. 先来让该Servlet支持异步处理，即asyncSupported=true
+        // 2. 开启异步模式
+        AsyncContext asyncContext = req.startAsync();
+        // 3. 调用业务逻辑，进行异步处理，这儿是开始异步处理
+        asyncContext.start(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    sayHello();
+
+                    asyncContext.complete();
+
+                    /*
+                     * 通过下面这种方式来获取响应对象是不可行的哟！否则，会报如下异常：
+                     * java.lang.IllegalStateException: It is illegal to call this method if the current request is not in asynchronous mode (i.e. isAsyncStarted() returns false)
+                     */
+                    // 获取到异步上下文
+                    //AsyncContext asyncContext = req.getAsyncContext();
+                    // ServletResponse response = asyncContext.getResponse();
+
+
+                    // 4. 获取响应
+                    ServletResponse response = asyncContext.getResponse();
+                    // 然后，我们还是利用这个响应往客户端来写数据
+                    resp.getWriter().write("hello async...");
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    public void sayHello() throws Exception {
+        // 打印一下究竟是哪些线程在工作
+        System.out.println(Thread.currentThread() + " processing...");
+        Thread.sleep(3000); // 睡上3秒
+    }
+}
+```
+
+启动项目进行测试。启动成功之后，访问`async`请求，从访问开始到看到响应结果，时间与上面是没有什么变化的，都得等上大概3、4秒钟，控制台打印出了如下内容。
+
+```
+UserFilter...doFilter...
+Thread[http-nio-8080-exec-6,5,main] processing...
+```
+
+在`doGet`方法中打印一下主线程和副线程
+
+```java
+@WebServlet(value = "/async", asyncSupported = true)
+public class HelloAsyncServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // 1. 先来让该Servlet支持异步处理，即asyncSupported=true
+        // 2. 开启异步模式
+        System.out.println("主线程开始。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
+        AsyncContext asyncContext = req.startAsync();
+        // 3. 调用业务逻辑，进行异步处理，这儿是开始异步处理
+        asyncContext.start(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    System.out.println("副线程开始。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
+                    sayHello();
+
+                    asyncContext.complete();
+
+                    /*
+                     * 通过下面这种方式来获取响应对象是不可行的哟！否则，会报如下异常：
+                     * java.lang.IllegalStateException: It is illegal to call this method if the current request is not in asynchronous mode (i.e. isAsyncStarted() returns false)
+                     */
+                    // 获取到异步上下文
+                    //AsyncContext asyncContext = req.getAsyncContext();
+                    // ServletResponse response = asyncContext.getResponse();
+
+
+                    // 4. 获取响应
+                    ServletResponse response = asyncContext.getResponse();
+                    // 然后，我们还是利用这个响应往客户端来写数据
+                    resp.getWriter().write("hello async...");
+
+                    System.out.println("副线程结束。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        System.out.println("主线程结束。。。"+Thread.currentThread()+"==>"+System.currentTimeMillis());
+    }
+
+    public void sayHello() throws Exception {
+        // 打印一下究竟是哪些线程在工作
+        System.out.println(Thread.currentThread() + " processing...");
+        Thread.sleep(3000); // 睡上3秒
+    }
+}
+```
+
+再来重启项目，成功之后，再来访问`async`请求,控制台中看到如下打印内容。
+
+```
+UserFilter...doFilter...
+主线程开始。。。Thread[http-nio-8080-exec-5,5,main]==>1622863537136
+主线程结束。。。Thread[http-nio-8080-exec-5,5,main]==>1622863537140
+副线程开始。。。Thread[http-nio-8080-exec-6,5,main]==>1622863537140
+Thread[http-nio-8080-exec-6,5,main] processing...
+副线程结束。。。Thread[http-nio-8080-exec-6,5,main]==>1622863540140
+```
+
+观察每一个线程开始与结束的时间，发现主线程从开始到结束，很快，间隔时间几乎不可计；而副线程从开始到结束，真的就耗了3秒钟的时间。而且，还可以很明显地看到副线程与业务逻辑用的是同一个线程，主线程也必然是这种情况，不过它一开始就立马结束了。
+
+所以，看到的现象就是，`doGet`方法来处理请求时，主线程一开始就立马结束了，此时，主线程就会得到释放；而副线程就开始来处理业务逻辑，处理完了以后，给客户端进行响应。这就是`Servlet 3.0`中的一重要特性，即异步请求处理，用一张图表示出来，就应该是下面这个样子。
+![](http://120.77.237.175:9080/photos/springanno/310.png)
+
+一个请求发过来，主线程就会来接收请求并进行处理，而且这个主线程是`Tomcat`服务器线程池里面分配出来的一个线程。当然，为了更加迅速地处理请求，在主线程处理请求的时候，会开启异步模式，这样，主线程就会立马结束，进入空闲状态，若有新的请求进来则就可以继续进行处理了。
+
+而业务逻辑是要异步处理的，因此就应交由异步处理的线程池进行处理。只不过现在主线程用的线程池跟异步处理的线程用的线程池都是`http-nio-8080-exec`，相当于并没有维护一个异步处理的线程池，所以，这就得自己来维护一个异步处理的线程池了。当然`Spring MVC`框架有来维护这个异步处理的线程池，使用它就不必这么麻烦了，还得自己来维护。
+
+最重要的一点是，看到了`Tomcat`服务器线程池里面分配出来的主线程一开始就立马结束了，很快就会进入空闲状态，等待迎接新的请求。
+
+## Spring MVC中的异步请求处理
+
+`Spring MVC`的官方文档，找到`1.6. Asynchronous Requests`已经有介绍 https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-ann-async
+
+`Spring MVC`中的异步请求处理是基于`Servlet 3.0`中的异步请求处理机制的，相当于做了一个简单的封装。也就是说，即使某人不知道`Servlet`里面的`API`，也可以使用`Spring MVC` 中的异步请求处理机制。发现使用方式有两种，一种是将方法的返回值写成`Callable`，另一种是将方法的返回值写成`DeferredResult`
+
+### Callable方式
+
+`springmvc-annotation`中新建一个`Controller`，`AsyncController`，然后在该`AsyncController`中编写一个如下的`async01`方法来处理异步请求。
+
+```java
+@Controller
+public class AsyncController {
+
+    @ResponseBody
+    @RequestMapping("/async01")
+    public Callable<String> async01() {
+        Callable callable = new Callable<String>() {
+            @Override
+            public String call() throws Exception {
+                // 响应给客户端一串字符串，即"Callable<String> async01()"
+                return "Callable<String> async01()";
+            }
+        };
+
+        return callable;
+    }
+
+}
+```
+
+可以看到与常规方法不同，以上`async01`方法的返回值是`Callable<String>`，其中泛型`String`就是要响应给客户端的数据的数据类型。为了清楚哪些线程在工作，在`async01`方法中打印一下主线程和副线程
+
+```java
+@Controller
+public class AsyncController {
+
+    @ResponseBody
+    @RequestMapping("/async01")
+    public Callable<String> async01() {
+        System.out.println("主线程开始..." + Thread.currentThread() + "==>" + System.currentTimeMillis());
+        Callable callable = new Callable<String>() {
+
+            @Override
+            public String call() throws Exception {
+                System.out.println("副线程开始..."+Thread.currentThread()+"==>"+System.currentTimeMillis());
+                Thread.sleep(3000); //睡上3秒 
+                System.out.println("副线程开始..."+Thread.currentThread()+"==>"+System.currentTimeMillis());
+                // 响应给客户端一串字符串，即"Callable<String> async01()"
+                return "Callable<String> async01()";
+            }
+        };
+
+        System.out.println("主线程结束..."+Thread.currentThread()+"==>"+System.currentTimeMillis());
+        return callable;
+    }
+
+}
+```
+
+编写完以上`AsyncController`之后，启动项目进行测试。访问`http://localhost:8080/springmvc_annotation/async01`请求，大概等上3秒之后，我在浏览器页面中看到`Callable async01()`这样的字符串了。而且，控制台还打印了如下内容。
+
+```
+preHandle.../springmvc_annotation/async01
+主线程开始...Thread[http-nio-8080-exec-10,5,main]==>1622876615412
+主线程结束...Thread[http-nio-8080-exec-10,5,main]==>1622876615412
+副线程开始...Thread[MvcAsync2,5,main]==>1622876615413
+副线程开始...Thread[MvcAsync2,5,main]==>1622876618414
+preHandle.../springmvc_annotation/async01
+postHandle...
+afterCompletion...
+```
+
+从上图中可以看到，主线程从开始到结束，很快，间隔时间几乎不可计，而且用的都是`http-nio-8080-exec-1`这一个线程；而副线程从开始到结束，真的就差不多耗了3秒钟，而且用的都是`MvcAsync2`这一个线程，也就是说，以上call方法里面写的代码都是在另外一个线程（即`MvcAsync2`）里面执行的。
+
+那为什么会打印成这个样子啊,其实，`Spring MVC`的官方文档就已经做了解释了，找到1.6.3. Processing这一小节并打开，发现若`Controller`中方法的返回值写成了`Callable`，则其处理流程就应该是下面这个样子的。
+![](http://120.77.237.175:9080/photos/springanno/311.jpg)
+
+第一步，控制器返回`Callable`。其实，这里要说的是控制器中方法的返回值要写成`Callable了`，而再也不能是以前普通的字符串对象了。
+
+第二步，控制器返回`Callable`以后，`Spring MVC`就会异步地启动一个处理方法（即`Spring MVC`异步处理），也即将`Callable`提交到`TaskExecutor`（任务执行器）里面，并使用一个隔离的线程进行处理。
+
+> 注意，`TaskExecutor`（任务执行器）是`JUC`包中Executor旗下的，不妨点进去`TaskExecutor`源码里面看一看，如下图所示。
+
+![](http://120.77.237.175:9080/photos/springanno/312.jpg)
+
+可以清楚地看到，`TaskExecutor`（任务执行器）是`Spring MVC`来定义的，只不过它继承了`JUC`包里面的`Executo`r接口，它是来执行`Runnable`对象中的`run`方法里面的任务的。
+
+第三步，`DispatcherServlet`和所有的`Filter`将会退出`Servle`t容器的线程（即主线程），但是`response`仍然保持打开的状态。既然`response`依旧保持打开状态，那就表明还没有给浏览器以响应，因此还能给`response`里面写数据。
+
+第四步，最终，`Callable`返回一个结果，并且`Spring MVC`会将请求重新派发给`Servlet`容器，恢复之前的处理。也就是说，之前的`response`依旧还保存着打开的状态，仍然还可以往其里面写数据。
+
+第五步，如果还是把上一次的请求再发过来，假设上一次的请求是`async01`，那么`DispatcherServlet`依旧还是能接收到该请求，收到以后，`DispatcherServlet`便会再次执行，来恢复之前的处理。
+
+那么它是如何来处理的呢？根据`Callable`返回的结果，该怎么处理还是怎么处理，即`Spring MVC`会继续进入视图渲染等等流程，也就是说，Spring MVC会从头开始再次执行其流程（收请求→视图渲染→给响应），这是因为请求会被再次发给`Spring MVC`。
+
+在控制台中发现咱们自定义编写的拦截器（即`MyFirstInterceptor`）也有相应内容打印。首先在目标方法运行之前打印`preHandle...`，然后主线程和副线程相继开始与结束，接着再次在目标方法运行之前打印`preHandle...`，紧接着在目标方法运行正确以后打印`postHandle...`，最后在页面响应以后打印`afterCompletion...`。
+
+有没有发现`preHandle...`打印了两次，这正是因为`Callable`线程处理完成后，`Spring MVC`会将请求重新派发给`Servlet`容器，并且由于配置的`DispatcherServlet`是拦截所有请求（即/），所以`Spring MVC`依然会接收到重新派发过来的请求，继而就能继续进行之前的处理了。
+
+为了验证这一点，不妨在目标方法运行之前打印一下拦截器到底拦截的是哪一个请求
+
+```java
+public class MyFirstInterceptor implements HandlerInterceptor {
+
+    //目标方法运行之前执行
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+
+        System.out.println("preHandle..." + request.getRequestURI());
+        return true;
+    }
+
+    //目标方法执行正确以后执行
+    @Override
+    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+
+        System.out.println("postHandle...");
+    }
+
+    //页面响应以后执行
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+
+        System.out.println("afterCompletion...");
+    }
+}
+```
+
+```
+preHandle.../springmvc_annotation/async01
+主线程开始...Thread[http-nio-8080-exec-10,5,main]==>1622876615412
+主线程结束...Thread[http-nio-8080-exec-10,5,main]==>1622876615412
+副线程开始...Thread[MvcAsync2,5,main]==>1622876615413
+副线程开始...Thread[MvcAsync2,5,main]==>1622876618414
+preHandle.../springmvc_annotation/async01
+postHandle...
+afterCompletion...
+```
+
+分析以上的处理结果,应该分为三段来看，第一段内容如下
+
+```
+preHandle.../springmvc_annotation/async01
+主线程开始...Thread[http-nio-8080-exec-10,5,main]==>1622876615412
+主线程结束...Thread[http-nio-8080-exec-10,5,main]==>1622876615412
+```
+
+这一段除了打印主线程的开始与结束之外，还在目标方法运行之前打印了`preHandle...`。至此，`DispatcherServlet`以及所有的`Filter`都退出了主线程。其实主线程中运行的目标方法就是 `AsyncController`中的`async01`方法，可以很明显地看到该方法的返回值是`Callable`，一旦该方法返回了`Callable`，主线程便结束了，相应地，`DispatcherServlet`也会退出该主线程。
+第二段内容
+
+```
+副线程开始...Thread[MvcAsync2,5,main]==>1622876615413
+副线程开始...Thread[MvcAsync2,5,main]==>1622876618414
+```
+
+这儿是将`Callable`提交到`TaskExecutor`（任务执行器）里面，并使用一个隔离的线程来进行处理，所谓的处理应该就是执行`Callable`对象中的`call`方法里面的任务。
+
+第三段内容，如下所示：
+
+```
+preHandle.../springmvc_annotation/async01
+postHandle...
+afterCompletion...
+```
+
+当`Callable`对象中的任务执行完成以后，`Spring MVC`会将请求重新派发给`Servle`t容器，以恢复之前的处理。此时，`Spring MVC`依旧会接收到重新派发过来的请求，即`async01`请求，这可以从以上打印结果中看出。
+
+现在你该明白了吧！之前`Spring MVC`接收到的请求是async01`，现在依然还是`async01`，只不过，此时收到请求之后，目标方法并不用被执行了，之前返回的`Callable`就是目标方法的返回值。接下来，`postHandle...`和`afterCompletion...`自然就要被依次打印了。
+
+以上就是`Spring MVC`的异步处理过程。当然，在异步处理的情况下，`Spring MVC`并不能拦截到真正的业务逻辑的整个处理流程，而要做到这一点，那就得使用异步的拦截器了，而且异步的拦截器有两种，它们分别是：
+
+- 原生`Servlet`里面的`AsyncListener`。不妨看一下它的源码，发现它是一个接口。
+
+  ```java
+  public interface AsyncListener extends EventListener {
+      void onComplete(AsyncEvent var1) throws IOException;
+  
+      void onTimeout(AsyncEvent var1) throws IOException;
+  
+      void onError(AsyncEvent var1) throws IOException;
+  
+      void onStartAsync(AsyncEvent var1) throws IOException;
+  }
+  ```
+
+- `Spring MVC`给提供的异步拦截器，即`AsyncHandlerIntercepto`r。`Spring MVC`的官方文档，打开它，然后查看`1.6.3. Processing`这一小节下的`Interception`这一部分的内容，要想成为一个异步拦截器，那么它必须得实现`AsyncHandlerInterceptor`接口。
+
+  ![](http://120.77.237.175:9080/photos/springanno/313.jpg)
 
