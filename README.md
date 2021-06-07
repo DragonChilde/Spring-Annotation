@@ -9699,7 +9699,117 @@ afterCompletion...
   }
   ```
 
-- `Spring MVC`给提供的异步拦截器，即`AsyncHandlerIntercepto`r。`Spring MVC`的官方文档，打开它，然后查看`1.6.3. Processing`这一小节下的`Interception`这一部分的内容，要想成为一个异步拦截器，那么它必须得实现`AsyncHandlerInterceptor`接口。
+- `Spring MVC`给提供的异步拦截器，即`AsyncHandlerInterceptor`。`Spring MVC`的官方文档，打开它，然后查看`1.6.3. Processing`这一小节下的`Interception`这一部分的内容，要想成为一个异步拦截器，那么它必须得实现`AsyncHandlerInterceptor`接口。
 
   ![](http://120.77.237.175:9080/photos/springanno/313.jpg)
+
+### DeferredResult方式
+
+上一节所讲的异步处理将方法的返回值写成`Callable`。实际的开发过程中，异步请求处理是绝不可能这么简单的，就拿下面这个实际的场景来说，如下图所示
+
+![](http://120.77.237.175:9080/photos/springanno/314.png)
+
+以创建订单为例，创建订单的请求一进来，应用1就要启动一个线程，来处理这个请求。如果假设应用1并不能创建订单，创建订单需要应用2来完成，那么此时应该怎么办呢？应用1可以把创建订单的消息存放在消息中间件中，比如`RabbitMQ`、`Kafka`等等，而应用2就来负责监听这些消息中间件里面的消息，一旦它发现有创建订单这个消息，那么它就进行相应处理，然后将处理完成后的结果，比如订单的订单号等等，再次存放在消息中间件中，接着应用1再启动一个线程，例如线程2，来监听消息中间件中的返回结果，只要订单创建完毕，它就会拿到返回的结果（即订单的订单号），最后将其响应给客户端。
+
+如果真遇到了以上那种实际场景，该如何处理？其实，`Spring MVC`也有结合消息中间件的使用场景，即利用`DeferredResult`。说得更具体一点就是，当客户端发送一个请求过来以后，即使该请求不能及时得到处理，那也没有关系，可以先`new`一个`DeferredResult`对象，然后把该对象返回出去，并把该对象保存在其他的地方，此时请求依旧在等待处理的过程中，那什么时候这个请求能被处理完成呢？这得等到另外一个线程在其他的地方获取到`DeferredResult`对象，并调用其`setResult`方法设置了结果之后，此时请求才会被处理完成，并响应给客户端。
+
+根据此业务写一个小实例进行测试
+
+首先，在`AsyncController`里面编写一个方法，例如`createOrder`，它并不能真正地来处理创建订单的请求，要想真正地来处理创建订单的请求，那还需要另外一个线程。注意，`createOrder`方法的返回值类型要写成`DeferredResult`\
+
+```java
+    @ResponseBody
+    @RequestMapping("/createOrder")
+    public DeferredResult<Object> createOrder() {
+        /*
+         * 在创建DeferredResult对象时，可以像下面这样传入一些参数哟！
+         *
+         * 第一个参数（timeout）： 超时时间。限定（请求？）必须在该时间内执行完，如果超出时间限制，那么就会返回一段错误的提示信息（timeoutResult）
+         * 第二个参数（timeoutResult）：超出时间限制之后，返回的错误提示信息
+         */
+        DeferredResult<Object> deferredResult = new DeferredResult<>((long) 3000, "create fail...");
+        return deferredResult;
+    }
+```
+
+从上可以看到，为了能够把消息直接写出去，使用的是`@ResponseBody`注解，这样就可以阻止跳转页面了。其实，现在还没有另外一个线程来调用`DeferredResult`对象中的`setResult`方法为其设置结果。先启动项目进行测试。项目启动成功之后，来访问`createOrder`请求，发现大概等了3秒钟之后，快速地响应给浏览器`create fail...`这样一串字符串很明显这是超出时间限制了，应该是相当于创建订单失败了吧！
+
+不妨来模拟一个队列。首先新建一个类，例如`DeferredResultQueue`，如下所示。
+
+```java
+public class DeferredResultQueue {
+
+    /**
+     * DeferredResult对象临时保存的地方
+     */
+    private static Queue<DeferredResult<Object>> queue = new ConcurrentLinkedDeque<DeferredResult<Object>>();
+
+    /**
+     * 临时保存DeferredResult对象的方法
+     *
+     * @param deferredResult
+     */
+    public static void save(DeferredResult<Object> deferredResult) {
+        queue.add(deferredResult);
+    }
+
+    /**
+     * 获取DeferredResult对象的方法
+     *
+     * @return
+     */
+    public static DeferredResult<Object> get() {
+        /*
+         * poll()：检索并且移除，移除的是队列头部的元素
+         */
+        return queue.poll();
+    }
+}
+```
+
+然后，修改一下`AsyncController`中的`createOrder`方法。该方法并不能真正地来处理创建订单的请求。即使如此，那也没关系，因为可以在该方法中先把`new`出来的`DeferredResult`对象临时保存起来。
+
+```java
+    @ResponseBody
+    @RequestMapping("/createOrder")
+    public DeferredResult<Object> createOrder() {
+        /*
+         * 在创建DeferredResult对象时，可以像下面这样传入一些参数哟！
+         *
+         * 第一个参数（timeout）： 超时时间。限定（请求？）必须在该时间内执行完，如果超出时间限制，那么就会返回一段错误的提示信息（timeoutResult）
+         * 第二个参数（timeoutResult）：超出时间限制之后，返回的错误提示信息
+         */
+        DeferredResult<Object> deferredResult = new DeferredResult<>((long) 3000, "create fail...");
+
+        DeferredResultQueue.save(deferredResult);
+        return deferredResult;
+    }
+```
+
+当然了，实际开发中应该有一个别的线程来专门监听这个事，再在`AsyncController`中编写一个方法，例如c`reate`，该方法才是真正来处理创建订单的请求的
+
+```java
+    @ResponseBody
+    @RequestMapping("/create")
+    public String create() {
+        String order = UUID.randomUUID().toString();
+        /*
+         * 如果我们想在上一个请求（即createOrder）中使用订单，那么该怎么办呢？从临时保存DeferredResult对象的地方获取
+         * 到刚才保存的DeferredResult对象，然后调用其setResult方法设置结果，例如设置订单的订单号
+         */
+
+        DeferredResult<Object> deferredResult = DeferredResultQueue.get();
+        deferredResult.setResult(order);
+        return "success====>" + order;
+    }
+```
+
+至此，可以看到，只要客户端发送一个`createOrder`请求进来创建订单，那么服务端就会先将`new`出来的DeferredResult对象临时保存起来。等到`create`方法触发并把订单号设置进去之后，在`createOrder`方法中就会立即得到返回结果，即订单号。
+
+最后，重启项目进行测试。重启成功之后，先来访问`createOrder`请求，以便来创建订单，但是订单必须得在3秒内创建完，所以一旦访问了`createOrder`请求后，必须立即访问`create`请求来真正创建订单，而且至少得在3秒内完成。
+
+可以看到访问`create`请求之后，直接给浏览器页面响应了一个success===0ebf2a8f-4000-4eb5-8901-7dba2a7ff2ff这样的字符串，其中0ebf2a8f-4000-4eb5-8901-7dba2a7ff2ff就是所创建订单的订单号,可以看到订单号都是一样的
+
+结论：另外一个线程拿到临时保存的`DeferredResult`对象之后，只要将最终处理的结果给该对象设置进去，那么另一边的线程就能立即得到返回结果了。
+
 
